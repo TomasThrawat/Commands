@@ -804,7 +804,7 @@ class _SectionDialogState extends State<_SectionDialog> {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Expanded(
-                                            child: SelectableText(
+                                            child: Text(
                                               entry.value.isEmpty
                                                   ? '(empty)'
                                                   : entry.value,
