@@ -319,44 +319,56 @@ class _CommandsPageState extends State<CommandsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  border: Border.all(color: Colors.white),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.terminal, color: Colors.white),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        status,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ),
-                    if (installed && shizukuRunning && !permission)
-                      OutlinedButton(
-                        onPressed: requestPermission,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: Colors.white),
+              if (!authorized) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    border: Border.all(color: Colors.white),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.terminal, color: Colors.white),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          status,
+                          style: const TextStyle(color: Colors.white),
                         ),
-                        child: const Text('Grant'),
                       ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Settings',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
+                      if (installed && shizukuRunning && !permission)
+                        OutlinedButton(
+                          onPressed: requestPermission,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.white),
+                          ),
+                          child: const Text('Grant'),
+                        ),
+                    ],
                   ),
                 ),
+                const SizedBox(height: 18),
+              ],
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Settings',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (authorized)
+                    const Icon(
+                      Icons.check_circle_outline,
+                      color: Colors.white,
+                      size: 19,
+                    ),
+                ],
               ),
               const SizedBox(height: 10),
               _sectionButton(_SettingsSection.system),
@@ -367,15 +379,26 @@ class _CommandsPageState extends State<CommandsPage> {
               const SizedBox(height: 8),
               _sectionButton(_SettingsSection.prop),
               const SizedBox(height: 18),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Shell command',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
+              const Divider(color: Colors.white24, height: 1),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Shell command',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                ),
+                  const Icon(
+                    Icons.terminal,
+                    color: Colors.white,
+                    size: 19,
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               TextField(
@@ -417,15 +440,28 @@ class _CommandsPageState extends State<CommandsPage> {
                 ),
               ),
               const SizedBox(height: 14),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Output',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
+              const Divider(color: Colors.white24, height: 1),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Output',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                ),
+                  Icon(
+                    terminalText.isEmpty
+                        ? Icons.article_outlined
+                        : Icons.article,
+                    color: Colors.white,
+                    size: 19,
+                  ),
+                ],
               ),
               const SizedBox(height: 6),
               SizedBox(
@@ -479,11 +515,31 @@ class _SectionDialogState extends State<_SectionDialog> {
   List<_SettingEntry> entries = const [];
   bool loading = true;
   String? error;
+  bool searching = false;
+  final searchController = TextEditingController();
+
+  List<_SettingEntry> get visibleEntries {
+    final query = searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return entries;
+    return entries
+        .where(
+          (entry) =>
+              entry.key.toLowerCase().contains(query) ||
+              entry.value.toLowerCase().contains(query),
+        )
+        .toList();
+  }
 
   @override
   void initState() {
     super.initState();
     _reload();
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 
   String _shellQuote(String value) {
@@ -727,6 +783,13 @@ class _SectionDialogState extends State<_SectionDialog> {
                     ),
                   ),
                   IconButton(
+                    onPressed: loading
+                        ? null
+                        : () => setState(() => searching = true),
+                    tooltip: 'Search',
+                    icon: const Icon(Icons.search, color: Colors.white),
+                  ),
+                  IconButton(
                     onPressed: loading ? null : _reload,
                     tooltip: 'Refresh',
                     icon: const Icon(Icons.refresh, color: Colors.white),
@@ -740,6 +803,31 @@ class _SectionDialogState extends State<_SectionDialog> {
               ),
             ),
             const Divider(color: Colors.white24, height: 1),
+            if (searching)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
+                child: TextField(
+                  controller: searchController,
+                  autofocus: true,
+                  onChanged: (_) => setState(() {}),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'monospace',
+                  ),
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search, color: Colors.white),
+                    hintText: 'Search by key or value',
+                    suffixIcon: IconButton(
+                      onPressed: () {
+                        searchController.clear();
+                        setState(() => searching = false);
+                      },
+                      tooltip: 'Close search',
+                      icon: const Icon(Icons.close, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
             Expanded(
               child: loading
                   ? const Center(
@@ -758,13 +846,13 @@ class _SectionDialogState extends State<_SectionDialog> {
                         )
                       : ListView.separated(
                           padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
-                          itemCount: entries.length,
+                          itemCount: visibleEntries.length,
                           separatorBuilder: (_, __) => const Divider(
                             color: Colors.white12,
                             height: 1,
                           ),
                           itemBuilder: (context, index) {
-                            final entry = entries[index];
+                            final entry = visibleEntries[index];
                             final readOnly =
                                 widget.section == _SettingsSection.prop &&
                                 entry.key.startsWith('ro.');
