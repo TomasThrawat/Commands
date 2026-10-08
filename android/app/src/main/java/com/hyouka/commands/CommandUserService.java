@@ -113,7 +113,7 @@ public final class CommandUserService extends ICommandService.Stub {
 
         String snapshot() {
             synchronized (bytes) {
-                String value = new String(bytes.toByteArray(), StandardCharsets.UTF_8);
+                String value = bytes.toString(StandardCharsets.UTF_8);
                 return truncated ? value + "\n[output truncated at 256 KiB]" : value;
             }
         }

@@ -46,7 +46,6 @@ Archive:  build/app/outputs/flutter-apk/app-release.apk
         5  1981-01-01 01:01   META-INF/kotlinx_coroutines_core.version
         3  1981-01-01 01:01   META-INF/services/i0
         3  1981-01-01 01:01   META-INF/services/j0
-      625  1981-01-01 01:01   kotlin-tooling-metadata.json
      1022  1981-01-01 01:01   kotlin/annotation/annotation.kotlin_builtins
      8625  1981-01-01 01:01   kotlin/collections/collections.kotlin_builtins
      2882  1981-01-01 01:01   kotlin/concurrent/atomics/atomics.kotlin_builtins
@@ -64,4 +63,4 @@ Archive:  build/app/outputs/flutter-apk/app-release.apk
       507  1981-01-01 01:01   res/yn.png
      7148  1981-01-01 01:01   resources.arsc
 ---------                     -------
- 17200794                     62 files
+ 17200169                     61 files
