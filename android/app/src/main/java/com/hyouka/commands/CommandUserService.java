@@ -27,9 +27,13 @@ public final class CommandUserService extends ICommandService.Stub {
         boolean timedOut = false;
 
         try {
-            process = new ProcessBuilder("sh", "-c", command)
-                    .redirectErrorStream(false)
-                    .start();
+            ProcessBuilder builder = new ProcessBuilder("/system/bin/sh", "-c", command)
+                    .redirectErrorStream(false);
+            builder.environment().put(
+                    "PATH",
+                    "/system/bin:/system/xbin:/vendor/bin:/vendor/xbin"
+            );
+            process = builder.start();
 
             out = new Collector(process.getInputStream());
             err = new Collector(process.getErrorStream());
