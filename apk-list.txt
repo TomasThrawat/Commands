@@ -3,9 +3,9 @@ Archive:  build/app/outputs/flutter-apk/app-release.apk
 ---------  ---------- -----   ----
        56  1981-01-01 01:01   META-INF/com/android/build/gradle/app-metadata.properties
        46  1981-01-01 01:01   META-INF/version-control-info.textproto
-      226  1981-01-01 01:01   assets/dexopt/baseline.prof
-       73  1981-01-01 01:01   assets/dexopt/baseline.profm
-   512748  1981-01-01 01:01   classes.dex
+      223  1981-01-01 01:01   assets/dexopt/baseline.prof
+       70  1981-01-01 01:01   assets/dexopt/baseline.profm
+   519476  1981-01-01 01:01   classes.dex
   4719496  1981-01-01 01:01   lib/arm64-v8a/libapp.so
  11747528  1981-01-01 01:01   lib/arm64-v8a/libflutter.so
         2  1981-01-01 01:01   assets/flutter_assets/AssetManifest.bin
@@ -64,4 +64,4 @@ Archive:  build/app/outputs/flutter-apk/app-release.apk
       507  1981-01-01 01:01   res/yn.png
      7148  1981-01-01 01:01   resources.arsc
 ---------                     -------
- 17194072                     62 files
+ 17200794                     62 files
