@@ -93,7 +93,7 @@ void main() {
     await tester.tap(find.text('150'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Value'), findsOneWidget);
+    expect(find.byType(AlertDialog), findsOneWidget);
     expect(find.text('Apply'), findsOneWidget);
     expect(find.text('Cancel'), findsOneWidget);
   });
