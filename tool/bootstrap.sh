@@ -28,3 +28,6 @@ cp tool/project_overlay/android/app/src/main/res/values/colors.xml android/app/s
 cp tool/project_overlay/android/app/src/main/res/values/styles.xml android/app/src/main/res/values/styles.xml
 cp tool/project_overlay/android/app/proguard-rules.pro android/app/proguard-rules.pro
 find android/app/src/main/kotlin -type f -name 'MainActivity.kt' -delete 2>/dev/null || true
+rm -f analysis_options.yaml
+
+flutter pub get

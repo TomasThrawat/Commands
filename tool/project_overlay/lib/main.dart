@@ -104,13 +104,13 @@ class _CommandsPageState extends State<CommandsPage> {
     try {
       final raw = await channel.invokeMethod<Map<dynamic, dynamic>>('status');
       final data = Map<String, dynamic>.from(raw ?? const {});
+
       if (!mounted) return;
 
-      installed = data['installed'] == true;
-      shizukuRunning = data['running'] == true;
-      permission = data['permission'] == true;
-
       setState(() {
+        installed = data['installed'] == true;
+        shizukuRunning = data['running'] == true;
+        permission = data['permission'] == true;
         status = _statusText();
       });
     } catch (e) {
@@ -132,10 +132,13 @@ class _CommandsPageState extends State<CommandsPage> {
     try {
       final granted = await channel.invokeMethod<bool>('requestPermission');
       await refreshStatus();
+
       if (!mounted) return;
-      showMessage(granted == true
-          ? 'Shizuku permission granted.'
-          : 'Shizuku permission was not granted.');
+      showMessage(
+        granted == true
+            ? 'Shizuku permission granted.'
+            : 'Shizuku permission was not granted.',
+      );
     } on PlatformException catch (e) {
       if (!mounted) return;
       showMessage(e.message ?? e.code);
@@ -241,11 +244,13 @@ class _CommandsPageState extends State<CommandsPage> {
         <String, dynamic>{'content': visibleOutput()},
       );
       final data = Map<String, dynamic>.from(raw ?? const {});
-      if (!mounted) return;
 
-      showMessage(data['success'] == true
-          ? 'Saved as commands.txt in Downloads.'
-          : 'Save failed.');
+      if (!mounted) return;
+      showMessage(
+        data['success'] == true
+            ? 'Saved as commands.txt in Downloads.'
+            : 'Save failed.',
+      );
     } on PlatformException catch (e) {
       if (!mounted) return;
       showMessage(e.message ?? e.code);
@@ -327,7 +332,10 @@ class _CommandsPageState extends State<CommandsPage> {
         onPressed: saveOutput,
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        side: const BorderSide(color: Colors.white),
+        shape: RoundedRectangleBorder(
+          side: const BorderSide(color: Colors.white),
+          borderRadius: BorderRadius.circular(16),
+        ),
         icon: const Icon(Icons.save_outlined),
         label: const Text('Save Output'),
       ),
@@ -390,6 +398,7 @@ class _CommandsPageState extends State<CommandsPage> {
                   onPressed: running ? null : runCommand,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
+                    disabledForegroundColor: Colors.white54,
                     side: const BorderSide(color: Colors.white),
                   ),
                   icon: running

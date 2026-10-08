@@ -8,7 +8,8 @@ void main() {
   const channel = MethodChannel('com.hyouka.commands/shizuku');
 
   setUp(() {
-    channel.setMockMethodCallHandler((call) async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
       if (call.method == 'status') {
         return <String, dynamic>{
           'installed': true,
@@ -21,7 +22,8 @@ void main() {
   });
 
   tearDown(() {
-    channel.setMockMethodCallHandler(null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null);
   });
 
   testWidgets('renders Commands UI', (tester) async {

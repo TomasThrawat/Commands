@@ -9,6 +9,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
+import android.os.RemoteException;
 import android.provider.MediaStore;
 
 import androidx.annotation.NonNull;
@@ -40,6 +41,7 @@ public final class MainActivity extends FlutterActivity {
     private MethodChannel.Result pendingCommandResult;
     private String pendingCommand;
     private long pendingTimeout;
+    private MethodChannel.Result pendingPermissionResult;
 
     private final Shizuku.OnRequestPermissionResultListener permissionListener =
             (requestCode, grantResult) -> {
@@ -51,8 +53,6 @@ public final class MainActivity extends FlutterActivity {
                 runOnUiThread(() ->
                         result.success(grantResult == PackageManager.PERMISSION_GRANTED));
             };
-
-    private MethodChannel.Result pendingPermissionResult;
 
     private final ServiceConnection connection = new ServiceConnection() {
         @Override
