@@ -319,44 +319,56 @@ class _CommandsPageState extends State<CommandsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  border: Border.all(color: Colors.white),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.terminal, color: Colors.white),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        status,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ),
-                    if (installed && shizukuRunning && !permission)
-                      OutlinedButton(
-                        onPressed: requestPermission,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: Colors.white),
+              if (!authorized) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    border: Border.all(color: Colors.white),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.terminal, color: Colors.white),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          status,
+                          style: const TextStyle(color: Colors.white),
                         ),
-                        child: const Text('Grant'),
                       ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Settings',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
+                      if (installed && shizukuRunning && !permission)
+                        OutlinedButton(
+                          onPressed: requestPermission,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.white),
+                          ),
+                          child: const Text('Grant'),
+                        ),
+                    ],
                   ),
                 ),
+                const SizedBox(height: 18),
+              ],
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Settings',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (authorized)
+                    const Icon(
+                      Icons.check_circle_outline,
+                      color: Colors.white,
+                      size: 19,
+                    ),
+                ],
               ),
               const SizedBox(height: 10),
               _sectionButton(_SettingsSection.system),
@@ -367,15 +379,26 @@ class _CommandsPageState extends State<CommandsPage> {
               const SizedBox(height: 8),
               _sectionButton(_SettingsSection.prop),
               const SizedBox(height: 18),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Shell command',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
+              const Divider(color: Colors.white24, height: 1),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Shell command',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                ),
+                  const Icon(
+                    Icons.terminal,
+                    color: Colors.white,
+                    size: 19,
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               TextField(
@@ -417,15 +440,28 @@ class _CommandsPageState extends State<CommandsPage> {
                 ),
               ),
               const SizedBox(height: 14),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Output',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
+              const Divider(color: Colors.white24, height: 1),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Output',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                ),
+                  Icon(
+                    terminalText.isEmpty
+                        ? Icons.article_outlined
+                        : Icons.article,
+                    color: Colors.white,
+                    size: 19,
+                  ),
+                ],
               ),
               const SizedBox(height: 6),
               SizedBox(
