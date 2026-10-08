@@ -55,12 +55,12 @@ Archive:  build/app/outputs/flutter-apk/app-release.apk
      4353  1981-01-01 01:01   kotlin/ranges/ranges.kotlin_builtins
      4859  1981-01-01 01:01   kotlin/reflect/reflect.kotlin_builtins
      6908  1981-01-01 01:01   AndroidManifest.xml
-      405  1981-01-01 01:01   res/9w.png
-      684  1981-01-01 01:01   res/FS.png
-      994  1981-01-01 01:01   res/RJ.png
+      279  1981-01-01 01:01   res/9w.png
+      420  1981-01-01 01:01   res/FS.png
+      525  1981-01-01 01:01   res/RJ.png
       344  1981-01-01 01:01   res/Zn.xml
-     1406  1981-01-01 01:01   res/o-.png
-      507  1981-01-01 01:01   res/yn.png
+      665  1981-01-01 01:01   res/o-.png
+      341  1981-01-01 01:01   res/yn.png
      7148  1981-01-01 01:01   resources.arsc
 ---------                     -------
- 17463133                     61 files
+ 17461367                     61 files
