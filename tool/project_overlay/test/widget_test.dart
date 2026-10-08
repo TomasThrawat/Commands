@@ -103,8 +103,13 @@ void main() {
     await tester.tap(find.byTooltip('Search'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(TextField), findsOneWidget);
-    await tester.enterText(find.byType(TextField), 'screen');
+    final searchField = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.hintText == 'Search by key or value',
+    );
+    expect(searchField, findsOneWidget);
+    await tester.enterText(searchField, 'screen');
     await tester.pump();
 
     expect(find.text('screen_brightness'), findsOneWidget);
