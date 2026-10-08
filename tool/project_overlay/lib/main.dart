@@ -314,7 +314,7 @@ class _CommandsPageState extends State<CommandsPage> {
         label: const Text('Save Output'),
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 110),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -428,7 +428,8 @@ class _CommandsPageState extends State<CommandsPage> {
                 ),
               ),
               const SizedBox(height: 6),
-              Expanded(
+              SizedBox(
+                height: 260,
                 child: Scrollbar(
                   controller: outputController,
                   thumbVisibility: true,
