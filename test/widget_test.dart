@@ -101,6 +101,16 @@ void main() {
 }
 
 
+  testWidgets('hides shizuku status after authorization', (tester) async {
+    await tester.pumpWidget(const CommandsApp());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Shizuku is ready.'), findsNothing);
+    expect(find.text('Shizuku is not installed.'), findsNothing);
+    expect(find.text('Shizuku is installed but not running.'), findsNothing);
+    expect(find.text('Shizuku permission is required.'), findsNothing);
+  });
+
   testWidgets('settings sections provide searchable values', (tester) async {
     await tester.pumpWidget(const CommandsApp());
     await tester.pumpAndSettle();
