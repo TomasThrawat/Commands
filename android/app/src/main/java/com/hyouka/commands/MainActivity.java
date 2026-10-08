@@ -3,6 +3,7 @@ package com.hyouka.commands;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.ContentValues;
+import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -32,6 +33,8 @@ public final class MainActivity extends FlutterActivity {
     private static final String CHANNEL = "com.hyouka.commands/shizuku";
     private static final int REQUEST_CODE = 4401;
     private static final String SHIZUKU_PACKAGE = "moe.shizuku.privileged.api";
+    private static final String OUTPUT_RELATIVE_PATH =
+            Environment.DIRECTORY_DOWNLOADS + "/Commands/";
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
     private final ArrayDeque<Runnable> pendingActions = new ArrayDeque<>();
@@ -91,6 +94,9 @@ public final class MainActivity extends FlutterActivity {
                 break;
             case "requestPermission":
                 requestPermission(result);
+                break;
+            case "openShizuku":
+                openShizuku(result);
                 break;
             case "runCommand":
                 Number timeout = call.argument("timeoutMs");
@@ -177,7 +183,46 @@ public final class MainActivity extends FlutterActivity {
         }
     }
 
-    private void runCommand(String command, long timeoutMs, MethodChannel.Result result) {
+    private void openShizuku(MethodChannel.Result result) {
+        try {
+            if (!isInstalled()) {
+                result.error(
+                        "SHIZUKU_NOT_INSTALLED",
+                        "Shizuku is not installed.",
+                        null
+                );
+                return;
+            }
+
+            Intent intent = getPackageManager()
+                    .getLaunchIntentForPackage(SHIZUKU_PACKAGE);
+
+            if (intent == null) {
+                result.error(
+                        "SHIZUKU_LAUNCH_ERROR",
+                        "Unable to open Shizuku.",
+                        null
+                );
+                return;
+            }
+
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            result.success(true);
+        } catch (Throwable e) {
+            result.error(
+                    "SHIZUKU_LAUNCH_ERROR",
+                    messageOf(e),
+                    null
+            );
+        }
+    }
+
+    private void runCommand(
+            String command,
+            long timeoutMs,
+            MethodChannel.Result result
+    ) {
         if (command == null || command.trim().isEmpty()) {
             result.error("EMPTY_COMMAND", "Enter a shell command first.", null);
             return;
@@ -260,7 +305,7 @@ public final class MainActivity extends FlutterActivity {
     }
 
     private void saveOutput(String content, MethodChannel.Result result) {
-        if (content == null) {
+        if (content == null || content.isEmpty()) {
             result.error("SAVE_EMPTY", "There is no output to save.", null);
             return;
         }
@@ -268,12 +313,14 @@ public final class MainActivity extends FlutterActivity {
         executor.execute(() -> {
             try {
                 ContentResolver resolver = getContentResolver();
-                String relativePath = Environment.DIRECTORY_DOWNLOADS + "/";
 
                 String selection =
                         MediaStore.MediaColumns.DISPLAY_NAME + "=? AND "
                                 + MediaStore.MediaColumns.RELATIVE_PATH + "=?";
-                String[] args = {"commands.txt", relativePath};
+                String[] args = {
+                    "commands.txt",
+                    OUTPUT_RELATIVE_PATH
+                };
 
                 try (android.database.Cursor cursor = resolver.query(
                         MediaStore.Downloads.EXTERNAL_CONTENT_URI,
@@ -295,39 +342,66 @@ public final class MainActivity extends FlutterActivity {
                 }
 
                 ContentValues values = new ContentValues();
-                values.put(MediaStore.MediaColumns.DISPLAY_NAME, "commands.txt");
-                values.put(MediaStore.MediaColumns.MIME_TYPE, "text/plain");
-                values.put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath);
-                values.put(MediaStore.MediaColumns.IS_PENDING, 1);
+                values.put(
+                        MediaStore.MediaColumns.DISPLAY_NAME,
+                        "commands.txt"
+                );
+                values.put(
+                        MediaStore.MediaColumns.MIME_TYPE,
+                        "text/plain"
+                );
+                values.put(
+                        MediaStore.MediaColumns.RELATIVE_PATH,
+                        OUTPUT_RELATIVE_PATH
+                );
+                values.put(
+                        MediaStore.MediaColumns.IS_PENDING,
+                        1
+                );
 
                 Uri uri = resolver.insert(
                         MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                         values
                 );
+
                 if (uri == null) {
-                    throw new IllegalStateException("MediaStore insert returned null.");
+                    throw new IllegalStateException(
+                            "MediaStore insert returned null."
+                    );
                 }
 
-                try (OutputStream output = resolver.openOutputStream(uri, "w")) {
+                try (OutputStream output =
+                             resolver.openOutputStream(uri, "w")) {
                     if (output == null) {
-                        throw new IllegalStateException("Unable to open commands.txt.");
+                        throw new IllegalStateException(
+                                "Unable to open commands.txt."
+                        );
                     }
                     output.write(content.getBytes(StandardCharsets.UTF_8));
                     output.flush();
                 }
 
                 ContentValues publish = new ContentValues();
-                publish.put(MediaStore.MediaColumns.IS_PENDING, 0);
+                publish.put(
+                        MediaStore.MediaColumns.IS_PENDING,
+                        0
+                );
                 resolver.update(uri, publish, null, null);
 
                 Map<String, Object> response = new HashMap<>();
                 response.put("success", true);
                 response.put("filename", "commands.txt");
+                response.put("relativePath", OUTPUT_RELATIVE_PATH);
                 response.put("uri", uri.toString());
+
                 runOnUiThread(() -> result.success(response));
             } catch (Throwable e) {
                 runOnUiThread(() ->
-                        result.error("SAVE_OUTPUT_ERROR", messageOf(e), null));
+                        result.error(
+                                "SAVE_OUTPUT_ERROR",
+                                messageOf(e),
+                                null
+                        ));
             }
         });
     }
