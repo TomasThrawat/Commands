@@ -186,11 +186,12 @@ class _CommandsPageState extends State<CommandsPage> {
         if (result.stdout.isNotEmpty) result.stdout.trimRight(),
         if (result.stderr.isNotEmpty) result.stderr.trimRight(),
         if (result.timedOut) 'Command timed out after 120 seconds.',
-        if (!result.timedOut &&
-            result.exitCode != 0 &&
-            result.stdout.isEmpty &&
-            result.stderr.isEmpty)
-          'Command failed with exit code ' + result.exitCode.toString() + '.',
+        if (!result.timedOut && result.exitCode != 0)
+          'Command failed with exit code ' +
+              result.exitCode.toString() +
+              (result.stdout.isEmpty && result.stderr.isEmpty
+                  ? ' (no output was returned).'
+                  : '.'),
       ];
       if (!mounted) return;
       setState(() => terminalText = parts.join('\n'));
@@ -718,9 +719,12 @@ class _SectionDialogState extends State<_SectionDialog> {
       if (!mounted) return;
 
       if (result.exitCode != 0) {
-        showMessage(
-          result.stderr.trim().isEmpty ? 'Apply failed.' : result.stderr.trim(),
-        );
+        final details = result.stderr.trim().isNotEmpty
+            ? result.stderr.trim()
+            : result.stdout.trim().isNotEmpty
+                ? result.stdout.trim()
+                : 'Command failed with exit code ' + result.exitCode.toString() + '.';
+        showMessage(details);
         return;
       }
 
@@ -730,7 +734,9 @@ class _SectionDialogState extends State<_SectionDialog> {
       if (verified.exitCode != 0) {
         showMessage(
           verified.stderr.trim().isEmpty
-              ? 'Value was applied, but verification failed.'
+              ? 'Value was applied, but verification failed (exit code ' +
+                  verified.exitCode.toString() +
+                  ').'
               : verified.stderr.trim(),
         );
       } else if (verified.stdout.trim() == controller.text) {
