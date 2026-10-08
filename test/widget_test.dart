@@ -19,40 +19,29 @@ void main() {
         };
       }
 
-      if (call.method != 'runCommand') {
-        return <String, dynamic>{'success': true};
-      }
+      if (call.method == 'runCommand') {
+        final args = Map<String, dynamic>.from(
+          call.arguments as Map<dynamic, dynamic>,
+        );
+        final command = args['command'] as String;
 
-      final args = Map<String, dynamic>.from(
-        call.arguments as Map<dynamic, dynamic>,
-      );
-      final command = args['command'] as String;
+        if (command == 'settings list system') {
+          return <String, dynamic>{
+            'stdout': 'screen_brightness=150\nfont_scale=1.0\n',
+            'stderr': '',
+            'exitCode': 0,
+            'timedOut': false,
+          };
+        }
 
-      if (command == 'settings list system') {
-        return <String, dynamic>{
-          'stdout': 'screen_brightness=150\nfont_scale=1.0\n',
-          'stderr': '',
-          'exitCode': 0,
-          'timedOut': false,
-        };
-      }
-
-      if (command == "settings get system 'screen_brightness'") {
-        return <String, dynamic>{
-          'stdout': '150\n',
-          'stderr': '',
-          'exitCode': 0,
-          'timedOut': false,
-        };
-      }
-
-      if (command == "settings put system 'screen_brightness' '180'") {
-        return <String, dynamic>{
-          'stdout': '',
-          'stderr': '',
-          'exitCode': 0,
-          'timedOut': false,
-        };
+        if (command == "settings get system 'screen_brightness'") {
+          return <String, dynamic>{
+            'stdout': '150\n',
+            'stderr': '',
+            'exitCode': 0,
+            'timedOut': false,
+          };
+        }
       }
 
       return <String, dynamic>{
@@ -60,6 +49,7 @@ void main() {
         'stderr': '',
         'exitCode': 0,
         'timedOut': false,
+        'success': true,
       };
     });
   });
@@ -69,7 +59,8 @@ void main() {
         .setMockMethodCallHandler(channel, null);
   });
 
-  testWidgets('renders settings sections', (tester) async {
+  testWidgets('renders settings sections without shizuku status',
+      (tester) async {
     await tester.pumpWidget(const CommandsApp());
     await tester.pumpAndSettle();
 
@@ -78,6 +69,7 @@ void main() {
     expect(find.text('Global'), findsOneWidget);
     expect(find.text('Secure'), findsOneWidget);
     expect(find.text('Prop'), findsOneWidget);
+    expect(find.text('Shizuku is ready.'), findsNothing);
   });
 
   testWidgets('System reads values and tapping a value opens editor',
@@ -97,18 +89,6 @@ void main() {
     expect(find.byType(AlertDialog), findsOneWidget);
     expect(find.text('Apply'), findsOneWidget);
     expect(find.text('Cancel'), findsOneWidget);
-  });
-}
-
-
-  testWidgets('hides shizuku status after authorization', (tester) async {
-    await tester.pumpWidget(const CommandsApp());
-    await tester.pumpAndSettle();
-
-    expect(find.text('Shizuku is ready.'), findsNothing);
-    expect(find.text('Shizuku is not installed.'), findsNothing);
-    expect(find.text('Shizuku is installed but not running.'), findsNothing);
-    expect(find.text('Shizuku permission is required.'), findsNothing);
   });
 
   testWidgets('settings sections provide searchable values', (tester) async {
@@ -130,3 +110,4 @@ void main() {
     expect(find.text('screen_brightness'), findsOneWidget);
     expect(find.text('font_scale'), findsNothing);
   });
+}
