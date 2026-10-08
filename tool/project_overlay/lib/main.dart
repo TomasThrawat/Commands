@@ -479,11 +479,31 @@ class _SectionDialogState extends State<_SectionDialog> {
   List<_SettingEntry> entries = const [];
   bool loading = true;
   String? error;
+  bool searching = false;
+  final searchController = TextEditingController();
+
+  List<_SettingEntry> get visibleEntries {
+    final query = searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return entries;
+    return entries
+        .where(
+          (entry) =>
+              entry.key.toLowerCase().contains(query) ||
+              entry.value.toLowerCase().contains(query),
+        )
+        .toList();
+  }
 
   @override
   void initState() {
     super.initState();
     _reload();
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 
   String _shellQuote(String value) {
@@ -727,6 +747,13 @@ class _SectionDialogState extends State<_SectionDialog> {
                     ),
                   ),
                   IconButton(
+                    onPressed: loading
+                        ? null
+                        : () => setState(() => searching = true),
+                    tooltip: 'Search',
+                    icon: const Icon(Icons.search, color: Colors.white),
+                  ),
+                  IconButton(
                     onPressed: loading ? null : _reload,
                     tooltip: 'Refresh',
                     icon: const Icon(Icons.refresh, color: Colors.white),
@@ -740,6 +767,31 @@ class _SectionDialogState extends State<_SectionDialog> {
               ),
             ),
             const Divider(color: Colors.white24, height: 1),
+            if (searching)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
+                child: TextField(
+                  controller: searchController,
+                  autofocus: true,
+                  onChanged: (_) => setState(() {}),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'monospace',
+                  ),
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search, color: Colors.white),
+                    hintText: 'Search by key or value',
+                    suffixIcon: IconButton(
+                      onPressed: () {
+                        searchController.clear();
+                        setState(() => searching = false);
+                      },
+                      tooltip: 'Close search',
+                      icon: const Icon(Icons.close, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
             Expanded(
               child: loading
                   ? const Center(
@@ -758,13 +810,13 @@ class _SectionDialogState extends State<_SectionDialog> {
                         )
                       : ListView.separated(
                           padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
-                          itemCount: entries.length,
+                          itemCount: visibleEntries.length,
                           separatorBuilder: (_, __) => const Divider(
                             color: Colors.white12,
                             height: 1,
                           ),
                           itemBuilder: (context, index) {
-                            final entry = entries[index];
+                            final entry = visibleEntries[index];
                             final readOnly =
                                 widget.section == _SettingsSection.prop &&
                                 entry.key.startsWith('ro.');

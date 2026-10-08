@@ -99,3 +99,24 @@ void main() {
     expect(find.text('Cancel'), findsOneWidget);
   });
 }
+
+
+  testWidgets('settings sections provide searchable values', (tester) async {
+    await tester.pumpWidget(const CommandsApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('System'));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Search'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Search'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'screen');
+    await tester.pump();
+
+    expect(find.text('screen_brightness'), findsOneWidget);
+    expect(find.text('font_scale'), findsNothing);
+  });
