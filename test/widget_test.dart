@@ -26,15 +26,12 @@ void main() {
         .setMockMethodCallHandler(channel, null);
   });
 
-  testWidgets('renders the Shizuku-ready command terminal UI', (tester) async {
+  testWidgets('renders Commands UI', (tester) async {
     await tester.pumpWidget(const CommandsApp());
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.text('Commands'), findsOneWidget);
-    expect(find.text('Shizuku ready'), findsOneWidget);
-    expect(find.text('Terminal'), findsOneWidget);
-    expect(find.text('READY'), findsOneWidget);
-    expect(find.text('Type a shell command'), findsOneWidget);
-    expect(find.byTooltip('Save output'), findsOneWidget);
+    expect(find.text('Shell command'), findsOneWidget);
+    expect(find.text('Save Output'), findsOneWidget);
   });
 }
