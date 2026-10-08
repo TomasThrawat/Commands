@@ -72,7 +72,7 @@ public final class MainActivity extends FlutterActivity {
     };
 
     @Override
-    protected void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
+    public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
         super.configureFlutterEngine(flutterEngine);
 
         MethodChannel channel = new MethodChannel(
