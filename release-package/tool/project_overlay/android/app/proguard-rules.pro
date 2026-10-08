@@ -1,0 +1,3 @@
+-keep class com.hyouka.commands.CommandUserService { *; }
+-keep class com.hyouka.commands.ICommandService$Stub { *; }
+-keep interface com.hyouka.commands.ICommandService { *; }
