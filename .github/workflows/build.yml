@@ -2,6 +2,12 @@ name: Build Commands
 
 on:
   workflow_dispatch:
+    inputs:
+      publish_public_release:
+        description: "Publish this APK as a public prerelease asset for Telegram delivery"
+        type: boolean
+        required: false
+        default: false
   push:
     branches: [main]
 
@@ -48,23 +54,24 @@ jobs:
       - name: Flutter test
         run: flutter test
 
-      - name: Build arm64 APK
-        run: flutter build apk --release --target-platform android-arm64
+      - name: Build multi-architecture APK
+        run: flutter build apk --release
 
-      - name: Verify APK
+      - name: Verify multi-architecture APK
         shell: bash
         run: |
           set -euo pipefail
-          APK="$(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          APK="$(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name 'app-release.apk' -print -quit)"
           test -n "$APK"
           unzip -l "$APK" > apk-list.txt
 
-          if grep -E 'lib/(armeabi-v7a|x86|x86_64)/' apk-list.txt; then
-            echo "Unexpected non-arm64 native library found."
-            exit 1
-          fi
-
-          grep -q 'lib/arm64-v8a/' apk-list.txt
+          for ABI in armeabi-v7a arm64-v8a x86_64; do
+            if ! grep -Fq "lib/${ABI}/" apk-list.txt; then
+              echo "Missing native libraries for supported ABI: ${ABI}"
+              exit 1
+            fi
+          done
+          echo "Verified ABIs: armeabi-v7a, arm64-v8a, x86_64"
 
           if unzip -l "$APK" | grep -F 'rish_shizuku.dex'; then
             echo "Forbidden rish_shizuku.dex found."
@@ -89,12 +96,12 @@ jobs:
           rsync -a --exclude='.git/' --exclude='build/' --exclude='.dart_tool/' ./ release-package/
           (cd release-package && zip -qr ../commands-flutter-project.zip .)
 
-      - name: Upload arm64 APK
+      - name: Upload universal APK
         uses: actions/upload-artifact@v7
         with:
-          name: commands-arm64-apk
+          name: commands-universal-apk
           path: |
-            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/flutter-apk/app-release.apk
             apk.sha256
           if-no-files-found: error
           retention-days: 14
@@ -107,7 +114,27 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Publish public APK release for Telegram delivery
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_public_release == true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          test -f "$APK"
+          cp "$APK" commands-universal.apk
+          sha256sum commands-universal.apk > commands-universal.apk.sha256
+          TAG="commands-universal-${GITHUB_RUN_ID}"
+          gh release create "$TAG" commands-universal.apk commands-universal.apk.sha256 \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Commands Universal APK (${GITHUB_RUN_NUMBER})" \
+            --notes "Multi-architecture APK built with Flutter 3.47.0. Supported ABIs: armeabi-v7a, arm64-v8a, x86_64. SHA-256 checksum is attached." \
+            --prerelease
+
       - name: Commit generated Flutter project
+        if: github.ref_name == 'main'
         shell: bash
         run: |
           set -euo pipefail
