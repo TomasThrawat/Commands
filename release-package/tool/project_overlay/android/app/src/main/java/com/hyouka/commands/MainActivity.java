@@ -3,6 +3,8 @@ package com.hyouka.commands;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.ContentValues;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -14,6 +16,8 @@ import android.provider.MediaStore;
 
 import androidx.annotation.NonNull;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
@@ -33,6 +37,9 @@ import rikka.shizuku.Shizuku;
 public final class MainActivity extends FlutterActivity {
     private static final String CHANNEL = "com.hyouka.commands/shizuku";
     private static final int REQUEST_CODE = 4401;
+    private static final int BACKUP_IMPORT_REQUEST_CODE = 4402;
+    private static final String PREFERENCES_NAME = "commands_app_preferences";
+    private static final int MAX_BACKUP_BYTES = 512 * 1024;
     private static final String SHIZUKU_PACKAGE = "moe.shizuku.privileged.api";
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
@@ -46,6 +53,7 @@ public final class MainActivity extends FlutterActivity {
     private volatile long activeCommandId = -1L;
     private final Set<Long> pendingCancellations = ConcurrentHashMap.newKeySet();
     private MethodChannel.Result pendingPermissionResult;
+    private MethodChannel.Result pendingBackupImportResult;
 
     private final Shizuku.OnRequestPermissionResultListener permissionListener =
             (requestCode, grantResult) -> {
@@ -115,6 +123,18 @@ public final class MainActivity extends FlutterActivity {
             case "saveOutput":
                 saveOutput(call.argument("content"), result);
                 break;
+            case "loadPreferences":
+                result.success(loadPreferences());
+                break;
+            case "savePreferences":
+                savePreferences(call, result);
+                break;
+            case "exportBackup":
+                exportBackup(call.argument("content"), result);
+                break;
+            case "importBackup":
+                importBackup(result);
+                break;
             default:
                 result.notImplemented();
         }
@@ -138,6 +158,8 @@ public final class MainActivity extends FlutterActivity {
         result.put("installed", installed);
         result.put("running", running);
         result.put("permission", permission);
+        result.put("serviceConnected", userService != null);
+        result.put("binding", binding);
         return result;
     }
 
@@ -343,13 +365,86 @@ public final class MainActivity extends FlutterActivity {
         });
     }
 
+    private Map<String, Object> loadPreferences() {
+        SharedPreferences preferences = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE);
+        Map<String, Object> values = new HashMap<>();
+        values.put("themeMode", preferences.getString("themeMode", "dark"));
+        values.put("fontScale", Float.valueOf(preferences.getFloat("fontScale", 1.0f)));
+        values.put("lastCommand", preferences.getString("lastCommand", ""));
+        values.put("historyJson", preferences.getString("historyJson", "[]"));
+        values.put("changesJson", preferences.getString("changesJson", "[]"));
+        return values;
+    }
+
+    private void savePreferences(MethodCall call, MethodChannel.Result result) {
+        String themeMode = call.argument("themeMode");
+        Number fontScale = call.argument("fontScale");
+        String lastCommand = call.argument("lastCommand");
+        String historyJson = call.argument("historyJson");
+        String changesJson = call.argument("changesJson");
+
+        if (!("dark".equals(themeMode) || "light".equals(themeMode) || "system".equals(themeMode))) {
+            result.error("INVALID_PREFERENCES", "Unsupported appearance value.", null);
+            return;
+        }
+        if (fontScale == null || !Float.isFinite(fontScale.floatValue())
+                || fontScale.floatValue() < 0.85f || fontScale.floatValue() > 1.4f) {
+            result.error("INVALID_PREFERENCES", "Text scale is outside the supported range.", null);
+            return;
+        }
+        if (lastCommand == null || lastCommand.length() > 4096
+                || historyJson == null || historyJson.length() > 300000
+                || changesJson == null || changesJson.length() > 100000) {
+            result.error("INVALID_PREFERENCES", "Preference data is too large or incomplete.", null);
+            return;
+        }
+
+        getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
+                .edit()
+                .putString("themeMode", themeMode)
+                .putFloat("fontScale", fontScale.floatValue())
+                .putString("lastCommand", lastCommand)
+                .putString("historyJson", historyJson)
+                .putString("changesJson", changesJson)
+                .apply();
+        result.success(true);
+    }
+
     private void saveOutput(String content, MethodChannel.Result result) {
         if (content == null) {
             result.error("SAVE_EMPTY", "There is no output to save.", null);
             return;
         }
+        saveTextToDownloads(content, "commands.txt", "text/plain", result, "SAVE_OUTPUT_ERROR");
+    }
 
+    private void exportBackup(String content, MethodChannel.Result result) {
+        if (content == null || content.isEmpty()) {
+            result.error("BACKUP_EMPTY", "There is no backup data to export.", null);
+            return;
+        }
+        if (content.getBytes(StandardCharsets.UTF_8).length > MAX_BACKUP_BYTES) {
+            result.error("BACKUP_TOO_LARGE", "Backup exceeds the supported size limit.", null);
+            return;
+        }
+        saveTextToDownloads(
+                content,
+                "commands-backup.json",
+                "application/json",
+                result,
+                "EXPORT_BACKUP_ERROR"
+        );
+    }
+
+    private void saveTextToDownloads(
+            String content,
+            String filename,
+            String mimeType,
+            MethodChannel.Result result,
+            String errorCode
+    ) {
         executor.execute(() -> {
+            Uri createdUri = null;
             try {
                 ContentResolver resolver = getContentResolver();
                 String relativePath = Environment.DIRECTORY_DOWNLOADS + "/";
@@ -357,7 +452,7 @@ public final class MainActivity extends FlutterActivity {
                 String selection =
                         MediaStore.MediaColumns.DISPLAY_NAME + "=? AND "
                                 + MediaStore.MediaColumns.RELATIVE_PATH + "=?";
-                String[] args = {"commands.txt", relativePath};
+                String[] args = {filename, relativePath};
 
                 try (android.database.Cursor cursor = resolver.query(
                         MediaStore.Downloads.EXTERNAL_CONTENT_URI,
@@ -379,22 +474,19 @@ public final class MainActivity extends FlutterActivity {
                 }
 
                 ContentValues values = new ContentValues();
-                values.put(MediaStore.MediaColumns.DISPLAY_NAME, "commands.txt");
-                values.put(MediaStore.MediaColumns.MIME_TYPE, "text/plain");
+                values.put(MediaStore.MediaColumns.DISPLAY_NAME, filename);
+                values.put(MediaStore.MediaColumns.MIME_TYPE, mimeType);
                 values.put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath);
                 values.put(MediaStore.MediaColumns.IS_PENDING, 1);
 
-                Uri uri = resolver.insert(
-                        MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                        values
-                );
-                if (uri == null) {
+                createdUri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+                if (createdUri == null) {
                     throw new IllegalStateException("MediaStore insert returned null.");
                 }
 
-                try (OutputStream output = resolver.openOutputStream(uri, "w")) {
+                try (OutputStream output = resolver.openOutputStream(createdUri, "w")) {
                     if (output == null) {
-                        throw new IllegalStateException("Unable to open commands.txt.");
+                        throw new IllegalStateException("Unable to open " + filename + ".");
                     }
                     output.write(content.getBytes(StandardCharsets.UTF_8));
                     output.flush();
@@ -402,16 +494,76 @@ public final class MainActivity extends FlutterActivity {
 
                 ContentValues publish = new ContentValues();
                 publish.put(MediaStore.MediaColumns.IS_PENDING, 0);
-                resolver.update(uri, publish, null, null);
+                resolver.update(createdUri, publish, null, null);
 
                 Map<String, Object> response = new HashMap<>();
                 response.put("success", true);
-                response.put("filename", "commands.txt");
-                response.put("uri", uri.toString());
+                response.put("filename", filename);
+                response.put("uri", createdUri.toString());
                 runOnUiThread(() -> result.success(response));
             } catch (Throwable e) {
-                runOnUiThread(() ->
-                        result.error("SAVE_OUTPUT_ERROR", messageOf(e), null));
+                if (createdUri != null) {
+                    try {
+                        getContentResolver().delete(createdUri, null, null);
+                    } catch (Throwable ignored) {
+                    }
+                }
+                runOnUiThread(() -> result.error(errorCode, messageOf(e), null));
+            }
+        });
+    }
+
+    private void importBackup(MethodChannel.Result result) {
+        if (pendingBackupImportResult != null) {
+            result.error("BACKUP_IMPORT_PENDING", "A backup import is already open.", null);
+            return;
+        }
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/json");
+        try {
+            pendingBackupImportResult = result;
+            startActivityForResult(intent, BACKUP_IMPORT_REQUEST_CODE);
+        } catch (Throwable e) {
+            pendingBackupImportResult = null;
+            result.error("BACKUP_IMPORT_PICKER_ERROR", messageOf(e), null);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != BACKUP_IMPORT_REQUEST_CODE || pendingBackupImportResult == null) {
+            return;
+        }
+        MethodChannel.Result result = pendingBackupImportResult;
+        pendingBackupImportResult = null;
+        if (resultCode != RESULT_OK || data == null || data.getData() == null) {
+            result.success(null);
+            return;
+        }
+
+        Uri uri = data.getData();
+        executor.execute(() -> {
+            try (InputStream input = getContentResolver().openInputStream(uri);
+                 ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                if (input == null) {
+                    throw new IllegalStateException("Unable to open the selected backup file.");
+                }
+                byte[] buffer = new byte[8192];
+                int read;
+                int total = 0;
+                while ((read = input.read(buffer)) != -1) {
+                    total += read;
+                    if (total > MAX_BACKUP_BYTES) {
+                        throw new IllegalStateException("Backup exceeds the 512 KiB size limit.");
+                    }
+                    output.write(buffer, 0, read);
+                }
+                String content = new String(output.toByteArray(), StandardCharsets.UTF_8);
+                runOnUiThread(() -> result.success(content));
+            } catch (Throwable e) {
+                runOnUiThread(() -> result.error("BACKUP_IMPORT_READ_ERROR", messageOf(e), null));
             }
         });
     }
