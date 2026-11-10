@@ -163,7 +163,7 @@ void main() {
         if (command == "getprop 'persist.sys.test'") {
           return shellResult(stdout: propSettingDeleted ? '' : '1\n');
         }
-        if (command == "resetprop -d 'persist.sys.test'") {
+        if (command.contains("resetprop -d 'persist.sys.test'")) {
           propSettingDeleted = true;
           return shellResult();
         }
