@@ -12,14 +12,17 @@ void main() {
   Completer<Map<String, dynamic>>? pendingShellResult;
   Map<String, dynamic>? lastRunArguments;
   Map<String, dynamic>? lastCancelArguments;
+  int statusCallCount = 0;
 
   setUp(() {
     pendingShellResult = null;
     lastRunArguments = null;
     lastCancelArguments = null;
+    statusCallCount = 0;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
       if (call.method == 'status') {
+        statusCallCount++;
         return <String, dynamic>{
           'installed': true,
           'running': true,
@@ -116,17 +119,46 @@ void main() {
     expect(find.textContaining('Command cancelled.'), findsOneWidget);
   });
 
-  testWidgets('renders settings sections without shizuku status',
+  testWidgets('groups settings sections and keeps Save at the bottom',
       (tester) async {
     await tester.pumpWidget(const CommandsApp());
     await tester.pumpAndSettle();
 
     expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Choose settings section'), findsOneWidget);
+    expect(find.text('System'), findsNothing);
+    expect(find.text('Global'), findsNothing);
+    expect(find.text('Secure'), findsNothing);
+    expect(find.text('Prop'), findsNothing);
+    expect(find.byType(RefreshIndicator), findsOneWidget);
+    expect(find.byTooltip('Refresh'), findsNothing);
+    expect(find.byType(FloatingActionButton), findsNothing);
+    expect(find.text('Save Output'), findsOneWidget);
+    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
+    expect(scaffold.bottomNavigationBar, isA<SafeArea>());
+    expect(find.text('Shizuku is ready.'), findsNothing);
+
+    await tester.tap(find.text('Choose settings section'));
+    await tester.pumpAndSettle();
     expect(find.text('System'), findsOneWidget);
     expect(find.text('Global'), findsOneWidget);
     expect(find.text('Secure'), findsOneWidget);
     expect(find.text('Prop'), findsOneWidget);
-    expect(find.text('Shizuku is ready.'), findsNothing);
+  });
+
+  testWidgets('pulling down refreshes Shizuku status', (tester) async {
+    await tester.pumpWidget(const CommandsApp());
+    await tester.pumpAndSettle();
+    final initialCalls = statusCallCount;
+
+    await tester.drag(
+      find.byType(SingleChildScrollView).first,
+      const Offset(0, 360),
+    );
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    expect(statusCallCount, greaterThan(initialCalls));
   });
 
   testWidgets('System reads values and tapping a value opens editor',
@@ -134,9 +166,13 @@ void main() {
     await tester.pumpWidget(const CommandsApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('System'));
+    await tester.tap(find.text('Choose settings section'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('System').last);
     await tester.pumpAndSettle();
 
+    expect(find.byType(RefreshIndicator), findsNWidgets(2));
+    expect(find.byTooltip('Refresh'), findsNothing);
     expect(find.text('screen_brightness'), findsOneWidget);
     expect(find.text('150'), findsOneWidget);
 
@@ -152,7 +188,9 @@ void main() {
     await tester.pumpWidget(const CommandsApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('System'));
+    await tester.tap(find.text('Choose settings section'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('System').last);
     await tester.pumpAndSettle();
 
     expect(find.byTooltip('Search'), findsOneWidget);

@@ -12,7 +12,7 @@ Archive:  build/app/outputs/flutter-apk/app-release.apk
        82  1981-01-01 01:01   assets/flutter_assets/FontManifest.json
     97988  1981-01-01 01:01   assets/flutter_assets/NOTICES.Z
        45  1981-01-01 01:01   assets/flutter_assets/NativeAssetsManifest.json
-     2800  1981-01-01 01:01   assets/flutter_assets/fonts/MaterialIcons-Regular.otf
+     2816  1981-01-01 01:01   assets/flutter_assets/fonts/MaterialIcons-Regular.otf
     21856  1981-01-01 01:01   assets/flutter_assets/shaders/ink_sparkle.frag
     17616  1981-01-01 01:01   assets/flutter_assets/shaders/stretch_effect.frag
      1738  1981-01-01 01:01   DebugProbesKt.bin
@@ -63,4 +63,4 @@ Archive:  build/app/outputs/flutter-apk/app-release.apk
       341  1981-01-01 01:01   res/yn.png
      7148  1981-01-01 01:01   resources.arsc
 ---------                     -------
- 17464929                     61 files
+ 17464945                     61 files

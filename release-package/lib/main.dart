@@ -268,36 +268,6 @@ class _CommandsPageState extends State<CommandsPage> {
     );
   }
 
-  Widget _sectionButton(_SettingsSection section) {
-    return OutlinedButton(
-      onPressed: authorized ? () => _openSettingsSection(section) : null,
-      style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.white,
-        disabledForegroundColor: Colors.white38,
-        side: const BorderSide(color: Colors.white),
-        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 14),
-        alignment: Alignment.centerLeft,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              section.title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const Icon(Icons.chevron_right, color: Colors.white),
-        ],
-      ),
-    );
-  }
-
   Future<void> saveOutput() async {
     try {
       final raw = await channel.invokeMethod<Map<dynamic, dynamic>>(
@@ -333,201 +303,257 @@ class _CommandsPageState extends State<CommandsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Commands'),
-        actions: [
-          IconButton(
-            onPressed: refreshStatus,
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh, color: Colors.white),
-          ),
-        ],
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: saveOutput,
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          side: const BorderSide(color: Colors.white),
-          borderRadius: BorderRadius.circular(16),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: saveOutput,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 15,
+                  horizontal: 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Save Output'),
+            ),
+          ),
         ),
-        icon: const Icon(Icons.save_outlined),
-        label: const Text('Save Output'),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 110),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (!authorized) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    border: Border.all(color: Colors.white),
+        child: RefreshIndicator(
+          onRefresh: refreshStatus,
+          color: Colors.white,
+          backgroundColor: Colors.black,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!authorized) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      border: Border.all(color: Colors.white),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.terminal, color: Colors.white),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            status,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                        if (installed && shizukuRunning && !permission)
+                          OutlinedButton(
+                            onPressed: requestPermission,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white),
+                            ),
+                            child: const Text('Grant'),
+                          ),
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.terminal, color: Colors.white),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          status,
-                          style: const TextStyle(color: Colors.white),
+                  const SizedBox(height: 18),
+                ],
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Settings',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      if (installed && shizukuRunning && !permission)
-                        OutlinedButton(
-                          onPressed: requestPermission,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white),
+                    ),
+                    if (authorized)
+                      const Icon(
+                        Icons.check_circle_outline,
+                        color: Colors.white,
+                        size: 19,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                PopupMenuButton<_SettingsSection>(
+                  tooltip: 'Choose settings section',
+                  onSelected: _openSettingsSection,
+                  color: Colors.black,
+                  itemBuilder: (context) => _SettingsSection.values
+                      .map(
+                        (section) => PopupMenuItem<_SettingsSection>(
+                          value: section,
+                          enabled: authorized,
+                          child: Text(
+                            section.title,
+                            style: const TextStyle(color: Colors.white),
                           ),
-                          child: const Text('Grant'),
                         ),
-                    ],
+                      )
+                      .toList(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 15,
+                      horizontal: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: authorized ? Colors.white : Colors.white38,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.tune,
+                          color: authorized ? Colors.white : Colors.white38,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Choose settings section',
+                            style: TextStyle(
+                              color: authorized ? Colors.white : Colors.white38,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          Icons.expand_more,
+                          color: authorized ? Colors.white : Colors.white38,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 18),
-              ],
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Settings',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
+                const Divider(color: Colors.white24, height: 1),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Shell command',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                  ),
-                  if (authorized)
                     const Icon(
-                      Icons.check_circle_outline,
+                      Icons.terminal,
                       color: Colors.white,
                       size: 19,
                     ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              _sectionButton(_SettingsSection.system),
-              const SizedBox(height: 8),
-              _sectionButton(_SettingsSection.global),
-              const SizedBox(height: 8),
-              _sectionButton(_SettingsSection.secure),
-              const SizedBox(height: 8),
-              _sectionButton(_SettingsSection.prop),
-              const SizedBox(height: 18),
-              const Divider(color: Colors.white24, height: 1),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Shell command',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: commandController,
+                  enabled: authorized && !running,
+                  minLines: 1,
+                  maxLines: 5,
+                  keyboardType: TextInputType.multiline,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'monospace',
+                  ),
+                  decoration: const InputDecoration(
+                    hintText: 'Enter a shell command',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton.icon(
+                    onPressed: !authorized || (running && stopping)
+                        ? null
+                        : running
+                            ? cancelCommand
+                            : runCommand,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      disabledForegroundColor: Colors.white38,
+                      side: const BorderSide(color: Colors.white),
+                    ),
+                    icon: running
+                        ? const Icon(Icons.stop, color: Colors.white)
+                        : const Icon(Icons.play_arrow, color: Colors.white),
+                    label: Text(
+                      running ? (stopping ? 'Stopping...' : 'Stop') : 'Run',
                     ),
                   ),
-                  const Icon(
-                    Icons.terminal,
-                    color: Colors.white,
-                    size: 19,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: commandController,
-                enabled: authorized && !running,
-                minLines: 1,
-                maxLines: 5,
-                keyboardType: TextInputType.multiline,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontFamily: 'monospace',
                 ),
-                decoration: const InputDecoration(
-                  hintText: 'Enter a shell command',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerRight,
-                child: OutlinedButton.icon(
-                  onPressed: !authorized || (running && stopping)
-                      ? null
-                      : running
-                          ? cancelCommand
-                          : runCommand,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    disabledForegroundColor: Colors.white38,
-                    side: const BorderSide(color: Colors.white),
-                  ),
-                  icon: running
-                      ? const Icon(Icons.stop, color: Colors.white)
-                      : const Icon(Icons.play_arrow, color: Colors.white),
-                  label: Text(
-                    running ? (stopping ? 'Stopping...' : 'Stop') : 'Run',
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Divider(color: Colors.white24, height: 1),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Output',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
+                const SizedBox(height: 14),
+                const Divider(color: Colors.white24, height: 1),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Output',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                  ),
-                  Icon(
-                    terminalText.isEmpty
-                        ? Icons.article_outlined
-                        : Icons.article,
-                    color: Colors.white,
-                    size: 19,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              SizedBox(
-                height: 260,
-                child: Scrollbar(
-                  controller: outputController,
-                  thumbVisibility: true,
-                  child: SingleChildScrollView(
+                    Icon(
+                      terminalText.isEmpty
+                          ? Icons.article_outlined
+                          : Icons.article,
+                      color: Colors.white,
+                      size: 19,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                SizedBox(
+                  height: 260,
+                  child: Scrollbar(
                     controller: outputController,
-                    child: SelectionArea(
-                      child: Align(
-                        alignment: Alignment.topLeft,
-                        child: Text(
-                          terminalText,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontFamily: 'monospace',
-                            fontSize: 13,
-                            height: 1.35,
+                    thumbVisibility: true,
+                    child: SingleChildScrollView(
+                      controller: outputController,
+                      child: SelectionArea(
+                        child: Align(
+                          alignment: Alignment.topLeft,
+                          child: Text(
+                            terminalText,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontFamily: 'monospace',
+                              fontSize: 13,
+                              height: 1.35,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -837,11 +863,6 @@ class _SectionDialogState extends State<_SectionDialog> {
                     icon: const Icon(Icons.search, color: Colors.white),
                   ),
                   IconButton(
-                    onPressed: loading ? null : _reload,
-                    tooltip: 'Refresh',
-                    icon: const Icon(Icons.refresh, color: Colors.white),
-                  ),
-                  IconButton(
                     onPressed: () => Navigator.of(context).pop(),
                     tooltip: 'Close',
                     icon: const Icon(Icons.close, color: Colors.white),
@@ -876,97 +897,123 @@ class _SectionDialogState extends State<_SectionDialog> {
                 ),
               ),
             Expanded(
-              child: loading
-                  ? const Center(
-                      child: CircularProgressIndicator(color: Colors.white),
-                    )
-                  : error != null
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Text(
-                              error!,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.white),
+              child: RefreshIndicator(
+                onRefresh: _reload,
+                color: Colors.white,
+                backgroundColor: Colors.black,
+                child: loading
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: const [
+                          SizedBox(
+                            height: 320,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
                             ),
                           ),
-                        )
-                      : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
-                          itemCount: visibleEntries.length,
-                          separatorBuilder: (_, __) => const Divider(
-                            color: Colors.white12,
-                            height: 1,
-                          ),
-                          itemBuilder: (context, index) {
-                            final entry = visibleEntries[index];
-                            final readOnly =
-                                widget.section == _SettingsSection.prop &&
-                                entry.key.startsWith('ro.');
-
-                            return Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  flex: 5,
+                        ],
+                      )
+                    : error != null
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              SizedBox(
+                                height: 320,
+                                child: Center(
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 10,
-                                      horizontal: 8,
-                                    ),
-                                    child: SelectableText(
-                                      entry.key,
+                                    padding: const EdgeInsets.all(24),
+                                    child: Text(
+                                      error!,
+                                      textAlign: TextAlign.center,
                                       style: const TextStyle(
                                         color: Colors.white,
-                                        fontFamily: 'monospace',
-                                        fontSize: 12,
                                       ),
                                     ),
                                   ),
                                 ),
-                                Expanded(
-                                  flex: 5,
-                                  child: InkWell(
-                                    onTap: () => _editEntry(entry),
-                                    borderRadius: BorderRadius.circular(8),
+                              ),
+                            ],
+                          )
+                        : ListView.separated(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
+                            itemCount: visibleEntries.length,
+                            separatorBuilder: (_, __) => const Divider(
+                              color: Colors.white12,
+                              height: 1,
+                            ),
+                            itemBuilder: (context, index) {
+                              final entry = visibleEntries[index];
+                              final readOnly =
+                                  widget.section == _SettingsSection.prop &&
+                                  entry.key.startsWith('ro.');
+
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    flex: 5,
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 10,
                                         horizontal: 8,
                                       ),
-                                      child: Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              entry.value.isEmpty
-                                                  ? '(empty)'
-                                                  : entry.value,
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontFamily: 'monospace',
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Icon(
-                                            readOnly
-                                                ? Icons.lock_outline
-                                                : Icons.edit_outlined,
-                                            color: Colors.white54,
-                                            size: 16,
-                                          ),
-                                        ],
+                                      child: SelectableText(
+                                        entry.key,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontFamily: 'monospace',
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
+                                  Expanded(
+                                    flex: 5,
+                                    child: InkWell(
+                                      onTap: () => _editEntry(entry),
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 10,
+                                          horizontal: 8,
+                                        ),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                entry.value.isEmpty
+                                                    ? '(empty)'
+                                                    : entry.value,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontFamily: 'monospace',
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Icon(
+                                              readOnly
+                                                  ? Icons.lock_outline
+                                                  : Icons.edit_outlined,
+                                              color: Colors.white54,
+                                              size: 16,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+              ),
             ),
           ],
         ),
