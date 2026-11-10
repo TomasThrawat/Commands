@@ -333,32 +333,43 @@ class _CommandsPageState extends State<CommandsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Commands'),
-        actions: [
-          IconButton(
-            onPressed: refreshStatus,
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh, color: Colors.white),
-          ),
-        ],
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: saveOutput,
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          side: const BorderSide(color: Colors.white),
-          borderRadius: BorderRadius.circular(16),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: saveOutput,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 15,
+                  horizontal: 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Save Output'),
+            ),
+          ),
         ),
-        icon: const Icon(Icons.save_outlined),
-        label: const Text('Save Output'),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 110),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+        child: RefreshIndicator(
+          onRefresh: refreshStatus,
+          color: Colors.white,
+          backgroundColor: Colors.black,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
               if (!authorized) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -411,13 +422,57 @@ class _CommandsPageState extends State<CommandsPage> {
                 ],
               ),
               const SizedBox(height: 10),
-              _sectionButton(_SettingsSection.system),
-              const SizedBox(height: 8),
-              _sectionButton(_SettingsSection.global),
-              const SizedBox(height: 8),
-              _sectionButton(_SettingsSection.secure),
-              const SizedBox(height: 8),
-              _sectionButton(_SettingsSection.prop),
+              PopupMenuButton<_SettingsSection>(
+                tooltip: 'Choose settings section',
+                onSelected: _openSettingsSection,
+                color: Colors.black,
+                itemBuilder: (context) => _SettingsSection.values
+                    .map(
+                      (section) => PopupMenuItem<_SettingsSection>(
+                        value: section,
+                        enabled: authorized,
+                        child: Text(
+                          section.title,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 15,
+                    horizontal: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: authorized ? Colors.white : Colors.white38,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.tune,
+                        color: authorized ? Colors.white : Colors.white38,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Choose settings section',
+                          style: TextStyle(
+                            color: authorized ? Colors.white : Colors.white38,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        Icons.expand_more,
+                        color: authorized ? Colors.white : Colors.white38,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 18),
               const Divider(color: Colors.white24, height: 1),
               const SizedBox(height: 18),
@@ -837,11 +892,6 @@ class _SectionDialogState extends State<_SectionDialog> {
                     icon: const Icon(Icons.search, color: Colors.white),
                   ),
                   IconButton(
-                    onPressed: loading ? null : _reload,
-                    tooltip: 'Refresh',
-                    icon: const Icon(Icons.refresh, color: Colors.white),
-                  ),
-                  IconButton(
                     onPressed: () => Navigator.of(context).pop(),
                     tooltip: 'Close',
                     icon: const Icon(Icons.close, color: Colors.white),
@@ -876,95 +926,120 @@ class _SectionDialogState extends State<_SectionDialog> {
                 ),
               ),
             Expanded(
-              child: loading
-                  ? const Center(
-                      child: CircularProgressIndicator(color: Colors.white),
-                    )
-                  : error != null
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Text(
-                              error!,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.white),
+              child: RefreshIndicator(
+                onRefresh: _reload,
+                color: Colors.white,
+                backgroundColor: Colors.black,
+                child: loading
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: const [
+                          SizedBox(
+                            height: 320,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
                             ),
                           ),
-                        )
-                      : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
-                          itemCount: visibleEntries.length,
-                          separatorBuilder: (_, __) => const Divider(
-                            color: Colors.white12,
-                            height: 1,
-                          ),
-                          itemBuilder: (context, index) {
-                            final entry = visibleEntries[index];
-                            final readOnly =
-                                widget.section == _SettingsSection.prop &&
-                                entry.key.startsWith('ro.');
-
-                            return Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  flex: 5,
+                        ],
+                      )
+                    : error != null
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              SizedBox(
+                                height: 320,
+                                child: Center(
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 10,
-                                      horizontal: 8,
-                                    ),
-                                    child: SelectableText(
-                                      entry.key,
+                                    padding: const EdgeInsets.all(24),
+                                    child: Text(
+                                      error!,
+                                      textAlign: TextAlign.center,
                                       style: const TextStyle(
                                         color: Colors.white,
-                                        fontFamily: 'monospace',
-                                        fontSize: 12,
                                       ),
                                     ),
                                   ),
                                 ),
-                                Expanded(
-                                  flex: 5,
-                                  child: InkWell(
-                                    onTap: () => _editEntry(entry),
-                                    borderRadius: BorderRadius.circular(8),
+                              ),
+                            ],
+                          )
+                        : ListView.separated(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
+                            itemCount: visibleEntries.length,
+                            separatorBuilder: (_, __) => const Divider(
+                              color: Colors.white12,
+                              height: 1,
+                            ),
+                            itemBuilder: (context, index) {
+                              final entry = visibleEntries[index];
+                              final readOnly =
+                                  widget.section == _SettingsSection.prop &&
+                                  entry.key.startsWith('ro.');
+
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    flex: 5,
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 10,
                                         horizontal: 8,
                                       ),
-                                      child: Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              entry.value.isEmpty
-                                                  ? '(empty)'
-                                                  : entry.value,
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontFamily: 'monospace',
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Icon(
-                                            readOnly
-                                                ? Icons.lock_outline
-                                                : Icons.edit_outlined,
-                                            color: Colors.white54,
-                                            size: 16,
-                                          ),
-                                        ],
+                                      child: SelectableText(
+                                        entry.key,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontFamily: 'monospace',
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            );
+                                  Expanded(
+                                    flex: 5,
+                                    child: InkWell(
+                                      onTap: () => _editEntry(entry),
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 10,
+                                          horizontal: 8,
+                                        ),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                entry.value.isEmpty
+                                                    ? '(empty)'
+                                                    : entry.value,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontFamily: 'monospace',
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Icon(
+                                              readOnly
+                                                  ? Icons.lock_outline
+                                                  : Icons.edit_outlined,
+                                              color: Colors.white54,
+                                              size: 16,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
                           },
                         ),
             ),
