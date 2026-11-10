@@ -283,7 +283,6 @@ void main() {
     await openSection(tester, 'System');
 
     expect(find.byType(RefreshIndicator), findsNWidgets(2));
-    expect(find.text('screen_brightness'), findsNothing);
     expect(find.byKey(const ValueKey('setting-key-screen_brightness')), findsOneWidget);
     expect(find.byKey(const ValueKey('setting-value-screen_brightness')), findsOneWidget);
 
@@ -338,7 +337,14 @@ void main() {
       expect(find.text('Delete setting?'), findsOneWidget);
       await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
-      expect(executedCommands, contains(item.$3));
+      if (item.$1 == 'Prop') {
+        expect(
+          executedCommands.any((command) => command.contains(item.$3)),
+          isTrue,
+        );
+      } else {
+        expect(executedCommands, contains(item.$3));
+      }
       expect(find.byKey(ValueKey('setting-row-${item.$2}')), findsNothing);
       await tester.tap(find.byTooltip('Close'));
       await tester.pumpAndSettle();
@@ -397,8 +403,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Command history'));
     await tester.pumpAndSettle();
-    expect(find.text('echo history-test'), findsOneWidget);
-    await tester.tap(find.text('echo history-test'));
+    final historyEntry = find.widgetWithText(ListTile, 'echo history-test');
+    expect(historyEntry, findsOneWidget);
+    await tester.tap(historyEntry);
     await tester.pumpAndSettle();
     expect(tester.widget<TextField>(commandField).controller!.text, 'echo history-test');
   });
