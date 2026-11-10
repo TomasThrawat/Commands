@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+int _commandSequence = 0;
+
+int _nextCommandId() => ++_commandSequence;
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const CommandsApp());
@@ -72,13 +76,13 @@ class _CommandResult {
     required this.stdout,
     required this.stderr,
     required this.exitCode,
-    required this.timedOut,
+    required this.cancelled,
   });
 
   final String stdout;
   final String stderr;
   final int exitCode;
-  final bool timedOut;
+  final bool cancelled;
 }
 
 class CommandsPage extends StatefulWidget {
@@ -95,6 +99,8 @@ class _CommandsPageState extends State<CommandsPage> {
   final outputController = ScrollController();
 
   bool running = false;
+  bool stopping = false;
+  int? activeCommandId;
   bool installed = false;
   bool shizukuRunning = false;
   bool permission = false;
@@ -156,17 +162,17 @@ class _CommandsPageState extends State<CommandsPage> {
     }
   }
 
-  Future<_CommandResult> _runShell(String command) async {
+  Future<_CommandResult> _runShell(String command, int commandId) async {
     final raw = await channel.invokeMethod<Map<dynamic, dynamic>>(
       'runCommand',
-      <String, dynamic>{'command': command, 'timeoutMs': 120000},
+      <String, dynamic>{'command': command, 'commandId': commandId},
     );
     final data = Map<String, dynamic>.from(raw ?? const {});
     return _CommandResult(
       stdout: data['stdout'] as String? ?? '',
       stderr: data['stderr'] as String? ?? '',
       exitCode: (data['exitCode'] as num?)?.toInt() ?? -1,
-      timedOut: data['timedOut'] == true,
+      cancelled: data['cancelled'] == true,
     );
   }
 
@@ -174,19 +180,22 @@ class _CommandsPageState extends State<CommandsPage> {
     final command = commandController.text.trim();
     if (command.isEmpty || running) return;
 
+    final commandId = _nextCommandId();
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       running = true;
+      stopping = false;
+      activeCommandId = commandId;
       terminalText = '';
     });
 
     try {
-      final result = await _runShell(command);
+      final result = await _runShell(command, commandId);
       final parts = <String>[
         if (result.stdout.isNotEmpty) result.stdout.trimRight(),
         if (result.stderr.isNotEmpty) result.stderr.trimRight(),
-        if (result.timedOut) 'Command timed out after 120 seconds.',
-        if (!result.timedOut && result.exitCode != 0)
+        if (result.cancelled) 'Command cancelled.',
+        if (!result.cancelled && result.exitCode != 0)
           'Command failed with exit code ' +
               result.exitCode.toString() +
               (result.stdout.isEmpty && result.stderr.isEmpty
@@ -201,7 +210,11 @@ class _CommandsPageState extends State<CommandsPage> {
       if (mounted) setState(() => terminalText = e.toString());
     } finally {
       if (!mounted) return;
-      setState(() => running = false);
+      setState(() {
+        running = false;
+        stopping = false;
+        activeCommandId = null;
+      });
       await refreshStatus();
       await Future<void>.delayed(const Duration(milliseconds: 80));
       if (outputController.hasClients) {
@@ -211,6 +224,32 @@ class _CommandsPageState extends State<CommandsPage> {
           curve: Curves.easeOut,
         );
       }
+    }
+  }
+
+  Future<void> cancelCommand() async {
+    final commandId = activeCommandId;
+    if (commandId == null || stopping) return;
+
+    setState(() => stopping = true);
+    try {
+      final accepted = await channel.invokeMethod<bool>(
+        'cancelCommand',
+        <String, dynamic>{'commandId': commandId},
+      );
+      if (!mounted) return;
+      if (accepted != true) {
+        setState(() => stopping = false);
+        showMessage('Command is no longer running.');
+      }
+    } on PlatformException catch (e) {
+      if (!mounted) return;
+      setState(() => stopping = false);
+      showMessage(e.message ?? e.code);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => stopping = false);
+      showMessage(e.toString());
     }
   }
 
@@ -421,23 +460,22 @@ class _CommandsPageState extends State<CommandsPage> {
               Align(
                 alignment: Alignment.centerRight,
                 child: OutlinedButton.icon(
-                  onPressed: authorized && !running ? runCommand : null,
+                  onPressed: !authorized || (running && stopping)
+                      ? null
+                      : running
+                          ? cancelCommand
+                          : runCommand,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
                     disabledForegroundColor: Colors.white38,
                     side: const BorderSide(color: Colors.white),
                   ),
                   icon: running
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
+                      ? const Icon(Icons.stop, color: Colors.white)
                       : const Icon(Icons.play_arrow, color: Colors.white),
-                  label: Text(running ? 'Running...' : 'Run'),
+                  label: Text(
+                    running ? (stopping ? 'Stopping...' : 'Stop') : 'Run',
+                  ),
                 ),
               ),
               const SizedBox(height: 14),
@@ -578,14 +616,17 @@ class _SectionDialogState extends State<_SectionDialog> {
   Future<_CommandResult> _run(String command) async {
     final raw = await widget.channel.invokeMethod<Map<dynamic, dynamic>>(
       'runCommand',
-      <String, dynamic>{'command': command, 'timeoutMs': 120000},
+      <String, dynamic>{
+        'command': command,
+        'commandId': _nextCommandId(),
+      },
     );
     final data = Map<String, dynamic>.from(raw ?? const {});
     return _CommandResult(
       stdout: data['stdout'] as String? ?? '',
       stderr: data['stderr'] as String? ?? '',
       exitCode: (data['exitCode'] as num?)?.toInt() ?? -1,
-      timedOut: data['timedOut'] == true,
+      cancelled: data['cancelled'] == true,
     );
   }
 
