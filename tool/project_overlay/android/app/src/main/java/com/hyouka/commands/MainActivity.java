@@ -19,6 +19,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -40,7 +42,9 @@ public final class MainActivity extends FlutterActivity {
     private boolean binding;
     private MethodChannel.Result pendingCommandResult;
     private String pendingCommand;
-    private long pendingTimeout;
+    private long pendingCommandId = -1L;
+    private volatile long activeCommandId = -1L;
+    private final Set<Long> pendingCancellations = ConcurrentHashMap.newKeySet();
     private MethodChannel.Result pendingPermissionResult;
 
     private final Shizuku.OnRequestPermissionResultListener permissionListener =
@@ -93,12 +97,20 @@ public final class MainActivity extends FlutterActivity {
                 requestPermission(result);
                 break;
             case "runCommand":
-                Number timeout = call.argument("timeoutMs");
-                runCommand(
-                        call.argument("command"),
-                        timeout == null ? 120000L : timeout.longValue(),
-                        result
-                );
+                Number commandId = call.argument("commandId");
+                if (commandId == null) {
+                    result.error("INVALID_COMMAND_ID", "Missing command ID.", null);
+                    break;
+                }
+                runCommand(call.argument("command"), commandId.longValue(), result);
+                break;
+            case "cancelCommand":
+                Number cancelId = call.argument("commandId");
+                if (cancelId == null) {
+                    result.error("INVALID_COMMAND_ID", "Missing command ID.", null);
+                    break;
+                }
+                cancelCommand(cancelId.longValue(), result);
                 break;
             case "saveOutput":
                 saveOutput(call.argument("content"), result);
@@ -177,9 +189,17 @@ public final class MainActivity extends FlutterActivity {
         }
     }
 
-    private void runCommand(String command, long timeoutMs, MethodChannel.Result result) {
+    private void runCommand(String command, long commandId, MethodChannel.Result result) {
         if (command == null || command.trim().isEmpty()) {
             result.error("EMPTY_COMMAND", "Enter a shell command first.", null);
+            return;
+        }
+        if (commandId <= 0L) {
+            result.error("INVALID_COMMAND_ID", "Invalid command ID.", null);
+            return;
+        }
+        if (pendingCommandResult != null || activeCommandId != -1L) {
+            result.error("COMMAND_BUSY", "A command is already running.", null);
             return;
         }
 
@@ -193,7 +213,7 @@ public final class MainActivity extends FlutterActivity {
         }
 
         pendingCommand = command;
-        pendingTimeout = Math.max(1000L, Math.min(timeoutMs, 120000L));
+        pendingCommandId = commandId;
         pendingCommandResult = result;
 
         if (userService != null) {
@@ -212,7 +232,7 @@ public final class MainActivity extends FlutterActivity {
             Shizuku.UserServiceArgs args = new Shizuku.UserServiceArgs(
                     new ComponentName(getPackageName(), CommandUserService.class.getName())
             )
-                    .version(1)
+                    .version(2)
                     .tag("commands")
                     .daemon(false)
                     .processNameSuffix("commands");
@@ -222,39 +242,103 @@ public final class MainActivity extends FlutterActivity {
             binding = false;
             pendingActions.clear();
             pendingCommandResult = null;
+            pendingCommand = null;
+            pendingCommandId = -1L;
+            pendingCancellations.remove(commandId);
             result.error("USER_SERVICE_BIND_ERROR", messageOf(e), null);
         }
+    }
+
+    private void cancelCommand(long commandId, MethodChannel.Result result) {
+        if (commandId <= 0L) {
+            result.error("INVALID_COMMAND_ID", "Invalid command ID.", null);
+            return;
+        }
+
+        if (pendingCommandResult != null && pendingCommandId == commandId) {
+            pendingCancellations.add(commandId);
+            result.success(true);
+            return;
+        }
+
+        if (activeCommandId != commandId) {
+            result.success(false);
+            return;
+        }
+
+        final ICommandService service = userService;
+        if (service == null) {
+            pendingCancellations.add(commandId);
+            result.success(true);
+            return;
+        }
+
+        executor.execute(() -> {
+            try {
+                boolean cancelled = service.cancel(commandId);
+                runOnUiThread(() -> result.success(cancelled));
+            } catch (RemoteException e) {
+                userService = null;
+                runOnUiThread(() ->
+                        result.error("USER_SERVICE_CANCEL_ERROR", messageOf(e), null));
+            } catch (Throwable e) {
+                runOnUiThread(() ->
+                        result.error("COMMAND_CANCEL_ERROR", messageOf(e), null));
+            }
+        });
     }
 
     private void executePending() {
         final ICommandService service = userService;
         final MethodChannel.Result result = pendingCommandResult;
         final String command = pendingCommand;
-        final long timeout = pendingTimeout;
+        final long commandId = pendingCommandId;
 
         pendingCommandResult = null;
         pendingCommand = null;
+        pendingCommandId = -1L;
 
-        if (service == null || result == null || command == null) {
+        if (service == null || result == null || command == null || commandId <= 0L) {
             return;
         }
 
+        activeCommandId = commandId;
         executor.execute(() -> {
             try {
-                Bundle bundle = service.execute(command, timeout);
                 Map<String, Object> output = new HashMap<>();
-                output.put("stdout", bundle.getString("stdout", ""));
-                output.put("stderr", bundle.getString("stderr", ""));
-                output.put("exitCode", bundle.getInt("exitCode", -1));
-                output.put("timedOut", bundle.getBoolean("timedOut", false));
-                runOnUiThread(() -> result.success(output));
+                if (pendingCancellations.remove(commandId)) {
+                    output.put("stdout", "");
+                    output.put("stderr", "");
+                    output.put("exitCode", -1);
+                    output.put("cancelled", true);
+                } else {
+                    Bundle bundle = service.execute(command, commandId);
+                    output.put("stdout", bundle.getString("stdout", ""));
+                    output.put("stderr", bundle.getString("stderr", ""));
+                    output.put("exitCode", bundle.getInt("exitCode", -1));
+                    output.put("cancelled", bundle.getBoolean("cancelled", false));
+                }
+                runOnUiThread(() -> {
+                    if (activeCommandId == commandId) {
+                        activeCommandId = -1L;
+                    }
+                    result.success(output);
+                });
             } catch (RemoteException e) {
                 userService = null;
-                runOnUiThread(() ->
-                        result.error("USER_SERVICE_EXECUTE_ERROR", messageOf(e), null));
+                runOnUiThread(() -> {
+                    if (activeCommandId == commandId) {
+                        activeCommandId = -1L;
+                    }
+                    result.error("USER_SERVICE_EXECUTE_ERROR", messageOf(e), null);
+                });
             } catch (Throwable e) {
-                runOnUiThread(() ->
-                        result.error("COMMAND_PROCESS_ERROR", messageOf(e), null));
+                runOnUiThread(() -> {
+                    if (activeCommandId == commandId) {
+                        activeCommandId = -1L;
+                    }
+                    result.error("COMMAND_PROCESS_ERROR", messageOf(e), null);
+                });
             }
         });
     }
@@ -352,7 +436,7 @@ public final class MainActivity extends FlutterActivity {
             Shizuku.UserServiceArgs args = new Shizuku.UserServiceArgs(
                     new ComponentName(getPackageName(), CommandUserService.class.getName())
             )
-                    .version(1)
+                    .version(2)
                     .tag("commands")
                     .daemon(false)
                     .processNameSuffix("commands");
