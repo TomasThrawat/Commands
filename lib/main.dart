@@ -731,7 +731,7 @@ class _CommandsPageState extends State<CommandsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               DropdownButtonFormField<ThemeMode>(
-                value: selectedTheme,
+                initialValue: selectedTheme,
                 decoration: const InputDecoration(labelText: 'Appearance'),
                 items: ThemeMode.values
                     .map((mode) => DropdownMenuItem<ThemeMode>(
