@@ -2,6 +2,12 @@ name: Build Commands
 
 on:
   workflow_dispatch:
+    inputs:
+      publish_public_release:
+        description: "Publish this ARM64 APK as a public prerelease asset for Telegram delivery"
+        type: boolean
+        required: false
+        default: false
   push:
     branches: [main]
 
@@ -48,30 +54,36 @@ jobs:
       - name: Flutter test
         run: flutter test
 
-      - name: Build arm64 APK
+      - name: Build ARM64 APK
         run: flutter build apk --release --target-platform android-arm64
 
-      - name: Verify APK
+      - name: Verify ARM64-only APK
         shell: bash
         run: |
           set -euo pipefail
-          APK="$(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          APK="$(find build/app/outputs/flutter-apk -maxdepth 1 -type f -name 'app-release.apk' -print -quit)"
           test -n "$APK"
           unzip -l "$APK" > apk-list.txt
 
-          if grep -E 'lib/(armeabi-v7a|x86|x86_64)/' apk-list.txt; then
-            echo "Unexpected non-arm64 native library found."
+          grep -oE 'lib/[^/]+/' apk-list.txt | cut -d/ -f2 | sort -u > apk-abis.txt
+          if ! grep -Fxq "arm64-v8a" apk-abis.txt; then
+            echo "Missing arm64-v8a native libraries."
             exit 1
           fi
-
-          grep -q 'lib/arm64-v8a/' apk-list.txt
+          ABI_COUNT="$(wc -l < apk-abis.txt)"
+          if [ "$ABI_COUNT" -ne 1 ]; then
+            echo "Unexpected native ABIs found:"
+            cat apk-abis.txt
+            exit 1
+          fi
+          echo "Verified ABI: arm64-v8a only"
 
           if unzip -l "$APK" | grep -F 'rish_shizuku.dex'; then
             echo "Forbidden rish_shizuku.dex found."
             exit 1
           fi
 
-          if unzip -l "$APK" | grep -Ei '(^|/)(rish|librish)(_|\.|/)' ; then
+          if unzip -l "$APK" | grep -Ei '(^|/)(rish|librish)(_|[.]|/)' ; then
             echo "Forbidden rish execution layer artifact found."
             exit 1
           fi
@@ -89,12 +101,12 @@ jobs:
           rsync -a --exclude='.git/' --exclude='build/' --exclude='.dart_tool/' ./ release-package/
           (cd release-package && zip -qr ../commands-flutter-project.zip .)
 
-      - name: Upload arm64 APK
+      - name: Upload ARM64 APK
         uses: actions/upload-artifact@v7
         with:
           name: commands-arm64-apk
           path: |
-            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/flutter-apk/app-release.apk
             apk.sha256
           if-no-files-found: error
           retention-days: 14
@@ -107,7 +119,27 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Publish public ARM64 APK release for Telegram delivery
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_public_release == true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          test -f "$APK"
+          cp "$APK" commands-arm64.apk
+          sha256sum commands-arm64.apk > commands-arm64.apk.sha256
+          TAG="commands-arm64-${GITHUB_RUN_ID}"
+          gh release create "$TAG" commands-arm64.apk commands-arm64.apk.sha256 \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Commands ARM64 APK (${GITHUB_RUN_NUMBER})" \
+            --notes "ARM64-only APK built with Flutter 3.47.0. ABI: arm64-v8a. SHA-256 checksum is attached." \
+            --prerelease
+
       - name: Commit generated Flutter project
+        if: github.ref_name == 'main'
         shell: bash
         run: |
           set -euo pipefail
