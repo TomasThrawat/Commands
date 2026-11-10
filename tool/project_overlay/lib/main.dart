@@ -268,36 +268,6 @@ class _CommandsPageState extends State<CommandsPage> {
     );
   }
 
-  Widget _sectionButton(_SettingsSection section) {
-    return OutlinedButton(
-      onPressed: authorized ? () => _openSettingsSection(section) : null,
-      style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.white,
-        disabledForegroundColor: Colors.white38,
-        side: const BorderSide(color: Colors.white),
-        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 14),
-        alignment: Alignment.centerLeft,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              section.title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const Icon(Icons.chevron_right, color: Colors.white),
-        ],
-      ),
-    );
-  }
-
   Future<void> saveOutput() async {
     try {
       final raw = await channel.invokeMethod<Map<dynamic, dynamic>>(
@@ -370,219 +340,220 @@ class _CommandsPageState extends State<CommandsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-              if (!authorized) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    border: Border.all(color: Colors.white),
+                if (!authorized) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      border: Border.all(color: Colors.white),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.terminal, color: Colors.white),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            status,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                        if (installed && shizukuRunning && !permission)
+                          OutlinedButton(
+                            onPressed: requestPermission,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white),
+                            ),
+                            child: const Text('Grant'),
+                          ),
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.terminal, color: Colors.white),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          status,
-                          style: const TextStyle(color: Colors.white),
+                  const SizedBox(height: 18),
+                ],
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Settings',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      if (installed && shizukuRunning && !permission)
-                        OutlinedButton(
-                          onPressed: requestPermission,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white),
+                    ),
+                    if (authorized)
+                      const Icon(
+                        Icons.check_circle_outline,
+                        color: Colors.white,
+                        size: 19,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                PopupMenuButton<_SettingsSection>(
+                  tooltip: 'Choose settings section',
+                  onSelected: _openSettingsSection,
+                  color: Colors.black,
+                  itemBuilder: (context) => _SettingsSection.values
+                      .map(
+                        (section) => PopupMenuItem<_SettingsSection>(
+                          value: section,
+                          enabled: authorized,
+                          child: Text(
+                            section.title,
+                            style: const TextStyle(color: Colors.white),
                           ),
-                          child: const Text('Grant'),
                         ),
-                    ],
+                      )
+                      .toList(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 15,
+                      horizontal: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: authorized ? Colors.white : Colors.white38,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.tune,
+                          color: authorized ? Colors.white : Colors.white38,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Choose settings section',
+                            style: TextStyle(
+                              color: authorized ? Colors.white : Colors.white38,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          Icons.expand_more,
+                          color: authorized ? Colors.white : Colors.white38,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 18),
-              ],
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Settings',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
+                const Divider(color: Colors.white24, height: 1),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Shell command',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                  ),
-                  if (authorized)
                     const Icon(
-                      Icons.check_circle_outline,
+                      Icons.terminal,
                       color: Colors.white,
                       size: 19,
                     ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              PopupMenuButton<_SettingsSection>(
-                tooltip: 'Choose settings section',
-                onSelected: _openSettingsSection,
-                color: Colors.black,
-                itemBuilder: (context) => _SettingsSection.values
-                    .map(
-                      (section) => PopupMenuItem<_SettingsSection>(
-                        value: section,
-                        enabled: authorized,
-                        child: Text(
-                          section.title,
-                          style: const TextStyle(color: Colors.white),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: commandController,
+                  enabled: authorized && !running,
+                  minLines: 1,
+                  maxLines: 5,
+                  keyboardType: TextInputType.multiline,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'monospace',
+                  ),
+                  decoration: const InputDecoration(
+                    hintText: 'Enter a shell command',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton.icon(
+                    onPressed: !authorized || (running && stopping)
+                        ? null
+                        : running
+                            ? cancelCommand
+                            : runCommand,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      disabledForegroundColor: Colors.white38,
+                      side: const BorderSide(color: Colors.white),
+                    ),
+                    icon: running
+                        ? const Icon(Icons.stop, color: Colors.white)
+                        : const Icon(Icons.play_arrow, color: Colors.white),
+                    label: Text(
+                      running ? (stopping ? 'Stopping...' : 'Stop') : 'Run',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Divider(color: Colors.white24, height: 1),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Output',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                    )
-                    .toList(),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 15,
-                    horizontal: 14,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: authorized ? Colors.white : Colors.white38,
                     ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.tune,
-                        color: authorized ? Colors.white : Colors.white38,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Choose settings section',
-                          style: TextStyle(
-                            color: authorized ? Colors.white : Colors.white38,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      Icon(
-                        Icons.expand_more,
-                        color: authorized ? Colors.white : Colors.white38,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Divider(color: Colors.white24, height: 1),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Shell command',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Icon(
+                      terminalText.isEmpty
+                          ? Icons.article_outlined
+                          : Icons.article,
+                      color: Colors.white,
+                      size: 19,
                     ),
-                  ),
-                  const Icon(
-                    Icons.terminal,
-                    color: Colors.white,
-                    size: 19,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: commandController,
-                enabled: authorized && !running,
-                minLines: 1,
-                maxLines: 5,
-                keyboardType: TextInputType.multiline,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontFamily: 'monospace',
+                  ],
                 ),
-                decoration: const InputDecoration(
-                  hintText: 'Enter a shell command',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerRight,
-                child: OutlinedButton.icon(
-                  onPressed: !authorized || (running && stopping)
-                      ? null
-                      : running
-                          ? cancelCommand
-                          : runCommand,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    disabledForegroundColor: Colors.white38,
-                    side: const BorderSide(color: Colors.white),
-                  ),
-                  icon: running
-                      ? const Icon(Icons.stop, color: Colors.white)
-                      : const Icon(Icons.play_arrow, color: Colors.white),
-                  label: Text(
-                    running ? (stopping ? 'Stopping...' : 'Stop') : 'Run',
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Divider(color: Colors.white24, height: 1),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Output',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    terminalText.isEmpty
-                        ? Icons.article_outlined
-                        : Icons.article,
-                    color: Colors.white,
-                    size: 19,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              SizedBox(
-                height: 260,
-                child: Scrollbar(
-                  controller: outputController,
-                  thumbVisibility: true,
-                  child: SingleChildScrollView(
+                const SizedBox(height: 6),
+                SizedBox(
+                  height: 260,
+                  child: Scrollbar(
                     controller: outputController,
-                    child: SelectionArea(
-                      child: Align(
-                        alignment: Alignment.topLeft,
-                        child: Text(
-                          terminalText,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontFamily: 'monospace',
-                            fontSize: 13,
-                            height: 1.35,
+                    thumbVisibility: true,
+                    child: SingleChildScrollView(
+                      controller: outputController,
+                      child: SelectionArea(
+                        child: Align(
+                          alignment: Alignment.topLeft,
+                          child: Text(
+                            terminalText,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontFamily: 'monospace',
+                              fontSize: 13,
+                              height: 1.35,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1040,8 +1011,9 @@ class _SectionDialogState extends State<_SectionDialog> {
                                   ),
                                 ],
                               );
-                          },
-                        ),
+                            },
+                          ),
+              ),
             ),
           ],
         ),
