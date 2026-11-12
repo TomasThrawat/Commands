@@ -42,11 +42,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y libgtk-3-dev mesa-utils
 
-      - name: Show Flutter environment
-        run: |
-          flutter --version
-          flutter doctor -v
-
       - name: Materialize project
         run: |
           chmod +x tool/bootstrap.sh
@@ -81,6 +76,11 @@ jobs:
           echo "ANDROID_NDK_HOME=$SDK_ROOT/ndk/27.0.12077973" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_ROOT=$SDK_ROOT/ndk/27.0.12077973" >> "$GITHUB_ENV"
           cargo install cargo-ndk --locked
+
+      - name: Show Flutter environment
+        run: |
+          flutter --version
+          flutter doctor -v
 
       - name: Check and test Rust engine
         run: |
