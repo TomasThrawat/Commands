@@ -37,6 +37,11 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Install Flutter doctor host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libgtk-3-dev mesa-utils
+
       - name: Show Flutter environment
         run: |
           flutter --version
@@ -74,6 +79,7 @@ jobs:
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_HOME=$SDK_ROOT/ndk/27.0.12077973" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$SDK_ROOT/ndk/27.0.12077973" >> "$GITHUB_ENV"
           cargo install cargo-ndk --locked
 
       - name: Check and test Rust engine
