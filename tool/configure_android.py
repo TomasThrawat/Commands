@@ -18,13 +18,13 @@ if path.name == "build.gradle.kts":
     text = re.sub(r'applicationId\s*=\s*"[^"]+"', 'applicationId = "com.hyouka.commands"', text, count=1)
     text = re.sub(r'minSdk\s*=\s*[^\n]+', 'minSdk = 31', text, count=1)
 
-    # Keep the Kotlin Android plugin aligned with the pinned AGP 8.13 toolchain.
-    if 'id("org.jetbrains.kotlin.android")' not in text:
-        text = text.replace(
-            'id("com.android.application")',
-            'id("com.android.application")\n    id("org.jetbrains.kotlin.android")',
-            1,
-        )
+    # AGP 9 provides built-in Kotlin support; applying kotlin-android would conflict.
+    text = re.sub(
+        r'^\s*id\("org\.jetbrains\.kotlin\.android"\)\s*\n',
+        '',
+        text,
+        flags=re.MULTILINE,
+    )
 
     if "buildFeatures" not in text:
         text = text.replace(

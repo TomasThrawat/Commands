@@ -1,3 +1,14 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // AGP 9.0.1 bundles KGP 2.2.10; Flutter 3.47 requires at least 2.3.20.
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.0")
+    }
+}
+
 allprojects {
     repositories {
         google()
