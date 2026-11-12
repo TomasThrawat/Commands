@@ -18,13 +18,13 @@ if path.name == "build.gradle.kts":
     text = re.sub(r'applicationId\s*=\s*"[^"]+"', 'applicationId = "com.hyouka.commands"', text, count=1)
     text = re.sub(r'minSdk\s*=\s*[^\n]+', 'minSdk = 31', text, count=1)
 
-    # AGP 9 legacy mode uses the explicitly pinned Kotlin Gradle plugin.
-    if 'id("org.jetbrains.kotlin.android")' not in text:
-        text = text.replace(
-            'id("com.android.application")',
-            'id("com.android.application")\n    id("org.jetbrains.kotlin.android")',
-            1,
-        )
+    # AGP 9 built-in Kotlin is enabled; never re-apply the legacy KGP plugin.
+    text = re.sub(
+        r'^\s*id\(\"org\.jetbrains\.kotlin\.android\"\)\s*\n',
+        '',
+        text,
+        flags=re.MULTILINE,
+    )
 
     if "buildFeatures" not in text:
         text = text.replace(
@@ -48,13 +48,13 @@ else:
     text = re.sub(r'applicationId\s*[ =]?\s*"[^"]+"', 'applicationId "com.hyouka.commands"', text, count=1)
     text = re.sub(r'minSdk(?:Version)?\s*[ =]?\s*[^\n]+', 'minSdkVersion 31', text, count=1)
 
-    if "org.jetbrains.kotlin.android" not in text:
-        text = re.sub(
-            r'(id\s*["\']com\.android\.application["\'])',
-            r'\1\n    id "org.jetbrains.kotlin.android"',
-            text,
-            count=1,
-        )
+    # Remove the legacy Kotlin plugin when the generated template is Groovy DSL.
+    text = re.sub(
+        r'^\s*id\s*[\"\']org\.jetbrains\.kotlin\.android[\"\']\s*\n',
+        '',
+        text,
+        flags=re.MULTILINE,
+    )
 
     if "buildFeatures" not in text:
         text = text.replace(
