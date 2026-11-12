@@ -62,7 +62,14 @@ jobs:
             SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
           fi
           test -x "$SDKMANAGER"
+          set +o pipefail
           yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null
+          LICENSE_STATUS=${PIPESTATUS[1]}
+          set -o pipefail
+          if [[ "$LICENSE_STATUS" -ne 0 ]]; then
+            echo "sdkmanager --licenses failed with exit code $LICENSE_STATUS"
+            exit "$LICENSE_STATUS"
+          fi
           "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install "ndk;27.0.12077973"
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
