@@ -324,7 +324,7 @@ pub extern "system" fn Java_com_hyouka_commands_CommandUserService_nativeExecute
     command_id: jlong,
 ) -> jstring {
     let command = match env.get_string(&command) {
-        Ok(value) => value.into(),
+        Ok(value) => value.to_string_lossy().into_owned(),
         Err(error) => {
             return new_java_string(
                 &mut env,
