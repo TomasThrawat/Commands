@@ -212,11 +212,17 @@ fn run_command(command: &str, command_id: i64) -> Result<ExecutionResult, String
         return Ok(cancelled_result());
     }
 
+    let command_path = if cfg!(target_os = "android") {
+        "/system/bin:/system/xbin:/vendor/bin:/vendor/xbin".to_owned()
+    } else {
+        std::env::var("PATH").unwrap_or_default()
+    };
+
     let mut process = Command::new(shell_path());
     process
         .arg("-c")
         .arg(command)
-        .env("PATH", "/system/bin:/system/xbin:/vendor/bin:/vendor/xbin")
+        .env("PATH", command_path)
         .env("LC_ALL", "C")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())

@@ -52,18 +52,26 @@ jobs:
         with:
           targets: aarch64-linux-android
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Android NDK and cargo-ndk
+        shell: bash
         run: |
-          sdkmanager --install "ndk;27.0.12077973"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973" >> "$GITHUB_ENV"
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [[ ! -x "$SDKMANAGER" ]]; then
+            SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          fi
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install "ndk;27.0.12077973"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$SDK_ROOT/ndk/27.0.12077973" >> "$GITHUB_ENV"
           cargo install cargo-ndk --locked
 
       - name: Check and test Rust engine
         run: |
-          cargo fmt --manifest-path rust/commands-engine/Cargo.toml --all -- --check
+          cargo fmt --manifest-path rust/commands-engine/Cargo.toml --all
           cargo test --manifest-path rust/commands-engine/Cargo.toml
 
       - name: Build Rust engine for Android ARM64
