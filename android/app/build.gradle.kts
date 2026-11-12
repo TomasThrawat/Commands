@@ -2,6 +2,7 @@ import com.android.build.api.dsl.ApplicationExtension
 
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.android")
     // The Flutter Gradle Plugin must be applied after the Android plugin.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -11,7 +12,7 @@ extensions.configure<ApplicationExtension> {
         aidl = true
     }
     namespace = "com.hyouka.commands"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {
