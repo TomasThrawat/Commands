@@ -10,6 +10,8 @@ on:
         default: false
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
@@ -44,6 +46,30 @@ jobs:
         run: |
           chmod +x tool/bootstrap.sh
           ./tool/bootstrap.sh
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK and cargo-ndk
+        run: |
+          sdkmanager --install "ndk;27.0.12077973"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973" >> "$GITHUB_ENV"
+          cargo install cargo-ndk --locked
+
+      - name: Check and test Rust engine
+        run: |
+          cargo fmt --manifest-path rust/commands-engine/Cargo.toml --all -- --check
+          cargo test --manifest-path rust/commands-engine/Cargo.toml
+
+      - name: Build Rust engine for Android ARM64
+        run: |
+          cargo ndk -t arm64-v8a -o android/app/src/main/jniLibs build --manifest-path rust/commands-engine/Cargo.toml --release
+
 
       - name: Flutter pub get
         run: flutter pub get
@@ -98,7 +124,7 @@ jobs:
         run: |
           rm -rf release-package
           mkdir -p release-package
-          rsync -a --exclude='.git/' --exclude='build/' --exclude='.dart_tool/' ./ release-package/
+          rsync -a --exclude='.git/' --exclude='build/' --exclude='.dart_tool/' --exclude='android/app/src/main/jniLibs/' ./ release-package/
           (cd release-package && zip -qr ../commands-flutter-project.zip .)
 
       - name: Upload ARM64 APK

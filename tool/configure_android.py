@@ -18,6 +18,13 @@ if path.name == "build.gradle.kts":
     text = re.sub(r'applicationId\s*=\s*"[^"]+"', 'applicationId = "com.hyouka.commands"', text, count=1)
     text = re.sub(r'minSdk\s*=\s*[^\n]+', 'minSdk = 31', text, count=1)
 
+    if 'id("org.jetbrains.kotlin.android")' not in text:
+        text = text.replace(
+            'id("com.android.application")',
+            'id("com.android.application")\n    id("org.jetbrains.kotlin.android")',
+            1,
+        )
+
     if "buildFeatures" not in text:
         text = text.replace(
             "android {",
@@ -40,6 +47,14 @@ else:
     text = re.sub(r'applicationId\s*[ =]?\s*"[^"]+"', 'applicationId "com.hyouka.commands"', text, count=1)
     text = re.sub(r'minSdk(?:Version)?\s*[ =]?\s*[^\n]+', 'minSdkVersion 31', text, count=1)
 
+    if "org.jetbrains.kotlin.android" not in text:
+        text = re.sub(
+            r'(id\s*["\']com\.android\.application["\'])',
+            r'\1\n    id "org.jetbrains.kotlin.android"',
+            text,
+            count=1,
+        )
+
     if "buildFeatures" not in text:
         text = text.replace(
             "android {",
@@ -60,6 +75,9 @@ dependencies {
 
 path.write_text(text, encoding="utf-8")
 
-kotlin_main = app / "src" / "main" / "kotlin" / "com" / "hyouka" / "commands" / "MainActivity.kt"
+# The generated template is removed before the source-controlled Kotlin overlay is copied.
+kotlin_main = (
+    app / "src" / "main" / "kotlin" / "com" / "hyouka" / "commands" / "MainActivity.kt"
+)
 if kotlin_main.exists():
     kotlin_main.unlink()
